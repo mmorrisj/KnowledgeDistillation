@@ -1,0 +1,81 @@
+---
+title: Temperature
+order: 3
+minutes: 10
+objectives:
+  - Predict how temperature reshapes a probability distribution
+  - Explain why a temperature above 1 can help a student learn
+  - Choose a temperature using the validation set
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import TemperatureExplorer from "../../../components/TemperatureExplorer.tsx";
+
+A confident teacher puts nearly all its probability on one type. The knowledge about the other types is still there, but in numbers so small that a student barely feels them. <mark>Temperature</mark> is the setting that brings them out.
+
+## Predict first
+
+<PredictReveal
+  client:load
+  id="least-likely"
+  prompt="At temperature 1, the teacher gives exchange_rate almost no probability for a message about a missing card. If you raise the temperature to 8, what happens to exchange_rate?"
+  options={["It stays near 0%", "It rises, but stays the least likely", "It overtakes one of the card types"]}
+>
+  It rises, and it stays last. Temperature divides every score by the same number before the probabilities are calculated. That squeezes the scores closer together, which flattens the distribution, but it cannot change which score is larger. Check it with the explorer below.
+</PredictReveal>
+
+<TemperatureExplorer client:load />
+
+## What temperature does
+
+The teacher's probabilities come from scores, one per type, passed through softmax. Temperature, written T, divides the scores first:
+
+> probabilities = softmax(scores ÷ T)
+
+- **T = 1** leaves the teacher's distribution as it is.
+- **T above 1** flattens it. Second and third choices get more weight, so the student sees more of how the teacher ranks the alternatives.
+- **T below 1** sharpens it toward a single answer. As T approaches zero you are back to a plain label.
+
+## Why flatter can be better
+
+At T = 1 a teacher might give 97% to its top choice and split 3% among the rest. The student's loss is then dominated by getting the top choice right, which is the same thing a label teaches. Raise T and the relationships among the other types become large enough to shape what the student learns.
+
+Flatter is not always better. At a very high temperature every type looks about equally likely and the signal is washed out. There is a useful middle, commonly somewhere from 2 to 5, and it depends on the teacher and the task.
+
+One rule keeps the comparison fair: **the student's scores are divided by the same T as the teacher's** while training. At prediction time the student uses T = 1.
+
+## Choosing T
+
+Temperature is a setting, so it is chosen the same way as any other: train with a few values, compare them on the **validation set**, and score only the winner on the test set. You will do exactly this in the lab.
+
+<ReviewCard
+  client:load
+  fromModule="Splits and leakage"
+  question="Why not pick the temperature that gives the best test score?"
+>
+  Because that is a decision made from the test set. The chosen temperature would be fitted to those particular messages, and the final score would be too optimistic.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="03-white-box/03-temperature"
+  id="what-t-changes"
+  question="A teacher ranks three types for a message as A, then B, then C. You raise the temperature from 1 to 4. What changes?"
+  options={[
+    {
+      text: "The order can change: C may overtake B",
+      feedback: "Dividing every score by the same number cannot change which is larger. The order is fixed.",
+    },
+    {
+      text: "The probabilities move closer together; the order stays A, B, C",
+      correct: true,
+      feedback: "Temperature changes how confident the teacher looks, not what it prefers.",
+    },
+    {
+      text: "Nothing changes until the student is trained",
+      feedback: "The teacher's softened probabilities are the training target, and they change as soon as T does.",
+    },
+  ]}
+/>

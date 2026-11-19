@@ -1,0 +1,85 @@
+---
+title: "Lab: white-box distillation"
+order: 5
+minutes: 10
+objectives:
+  - Score every message with the teacher and save the results
+  - Train a student on the teacher's probabilities and measure the gap it closes
+  - Compare learning from probabilities with learning from the teacher's top answers
+lab:
+  title: White-box distillation
+  path: labs/03_white_box/01_white_box.ipynb
+  minutes: 45
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+This lab produces the third number. It needs the results from the Module 2 lab, so run that first.
+
+## What the lab does
+
+1. **Scores every message with the teacher**: the pool, the gold sets and the test set. This is the slow step. The scores are saved, so it runs once.
+2. **Scores the teacher itself** using its top choice on the test set. This is the ceiling for this module.
+3. **Trains a student on the teacher's top answers** for the pool, treated as if they were labels. This uses only what a text API could have given you.
+4. **Trains a student on the teacher's probabilities**, with the distillation loss from lesson 3.4.
+5. **Compares everything**: baseline, both students, and the teacher, with intervals, gap closed, and paired tests.
+6. **Tries other temperatures**, choosing on the validation set.
+
+## Before you look at the results
+
+Predict two things and write them down:
+
+- How much of the gap between the baseline and the teacher will the probability-trained student close?
+- Will it beat the student trained on the teacher's top answers? By how much?
+
+## Reading the results
+
+- **Gap closed.** Above zero means the teacher taught the student something. Compare your figure with your prediction.
+- **Probabilities against top answers.** Both students saw the same messages and the same teacher. The only difference is whether the student saw the teacher's full distribution or just its first choice. The paired comparison tells you whether that difference is real. This is the measured value of dark knowledge on this task.
+- **The teacher's two scores.** The teacher's score from choosing the most likely type may differ a little from its Module 2 score, where it wrote out an answer. Scoring cannot produce an unusable reply, so it is often slightly higher.
+
+A small or unclear gain from probabilities over top answers is a legitimate result. It would tell you that for this task most of the teacher's value is in its answers, which is good news if your teacher is behind an API. Module 4 picks up from there.
+
+## If something goes wrong
+
+<div class="table-wrap">
+
+| What you see | Likely cause | What to do |
+|---|---|---|
+| "No result named baseline_gold_616" | The Module 2 lab has not been run on this machine | Run the Module 2 lab first |
+| "The scores were computed for different texts" | The saved scores belong to a different split | Delete the named file and run the scoring cell again |
+| Out of memory during scoring | Another model is still on the GPU | Restart the notebook and run from the top; saved scores are kept |
+| Scoring is slower than expected | It is the slow step, and runs once | Leave it running; progress is printed every 500 messages |
+
+</div>
+
+<ReviewCard
+  client:load
+  fromModule="The distillation loss"
+  question="Why is the teacher term multiplied by T squared?"
+>
+  Dividing scores by T shrinks the teacher term's gradients by about T squared. Multiplying back keeps the teacher term and the label term on a comparable scale, so alpha means the same thing at every temperature.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="03-white-box/05-lab-white-box"
+  id="hard-vs-soft"
+  question="Two students train on the same pool messages and the same teacher. One learns from the teacher's top answers, the other from its probabilities. What does the difference between their scores measure?"
+  options={[
+    {
+      text: "How good the teacher is",
+      feedback: "Both students had the same teacher, so its quality cancels out of this comparison.",
+    },
+    {
+      text: "How much the teacher's ranking of the other types adds beyond its first choice",
+      correct: true,
+      feedback: "The top answer is contained in the probabilities. Everything extra the second student saw is the teacher's view of the alternatives.",
+    },
+    {
+      text: "How much the human labels add",
+      feedback: "Both students use the same 616 human labels. To measure what those add, you would change alpha.",
+    },
+  ]}
+/>

@@ -3,11 +3,30 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
 
-DEFAULT_DIR = "results"
+
+def default_results_dir() -> Path:
+    """One shared folder for every lab.
+
+    Uses `KD_COURSE_RESULTS_DIR` if set, otherwise `results` at the top of the repo.
+
+    The repo top is found by walking up from the current folder to `pyproject.toml`.
+    Outside a repo, `results` in the current folder is used.
+    """
+    configured = os.environ.get("KD_COURSE_RESULTS_DIR")
+    if configured:
+        return Path(configured)
+    here = Path.cwd()
+    for folder in (here, *here.parents):
+        if (folder / "pyproject.toml").is_file():
+            return folder / "results"
+    return here / "results"
+
+
 _NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
@@ -15,26 +34,32 @@ def save_result(
     name: str,
     metrics: dict[str, Any],
     predictions: list[int | None],
-    results_dir: str | Path = DEFAULT_DIR,
+    results_dir: str | Path | None = None,
 ) -> Path:
     """Write `<results_dir>/<name>.json`, replacing any earlier result with that name."""
     if not _NAME.match(name):
         raise ValueError(
             f"Result name '{name}' must use only letters, digits, hyphens and underscores."
         )
-    folder = Path(results_dir)
+    folder = Path(results_dir) if results_dir else default_results_dir()
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{name}.json"
     path.write_text(json.dumps({"metrics": metrics, "predictions": predictions}, indent=2))
     return path
 
 
-def load_results(results_dir: str | Path = DEFAULT_DIR) -> dict[str, dict[str, Any]]:
+def load_results(results_dir: str | Path | None = None) -> dict[str, dict[str, Any]]:
     """Every saved result, keyed by name."""
-    folder = Path(results_dir)
+    folder = Path(results_dir) if results_dir else default_results_dir()
     if not folder.is_dir():
         return {}
-    return {path.stem: json.loads(path.read_text()) for path in sorted(folder.glob("*.json"))}
+    results = {}
+    for path in sorted(folder.glob("*.json")):
+        content = json.loads(path.read_text())
+        # Other files, such as saved teacher scores, can live in the same folder.
+        if isinstance(content, dict) and isinstance(content.get("metrics"), dict):
+            results[path.stem] = content
+    return results
 
 
 def format_results(results: dict[str, dict[str, Any]]) -> str:
@@ -47,3 +72,14 @@ def format_results(results: dict[str, dict[str, Any]]) -> str:
         macro = f"{metrics['macro_f1'] * 100:.1f}%" if "macro_f1" in metrics else ""
         lines.append(f"{name:<24}{metrics['accuracy'] * 100:>9.1f}%{interval_text:>18}{macro:>10}")
     return "\n".join(lines)
+
+
+def require_result(name: str, results_dir: str | Path | None = None) -> dict[str, Any]:
+    """A result an earlier lab should have saved, or a clear error saying which one is missing."""
+    results = load_results(results_dir)
+    if name not in results:
+        folder = Path(results_dir) if results_dir else default_results_dir()
+        raise LookupError(
+            f"No result named {name} in {folder}. Run the earlier lab that produces it first."
+        )
+    return results[name]

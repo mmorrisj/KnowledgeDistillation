@@ -1,0 +1,92 @@
+---
+title: What the teacher knows
+order: 1
+minutes: 10
+objectives:
+  - Explain what a teacher's probabilities carry that a single label does not
+  - Say why that extra information matters most when types are similar
+  - Describe white-box distillation in one sentence
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import ProbBars from "../../../components/ProbBars.astro";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+In Module 2 the teacher gave one answer per message. That answer is a small part of what it knows. This module is about getting the rest.
+
+## One label throws information away
+
+Take the message *"I still haven't got my new card."* A person labels it `card_arrival`. As a training target, that label says: this type is right, and the other 76 are all equally wrong.
+
+They are not equally wrong. A question about when a card will be delivered is nearly the same request. A lost card is related. A question about exchange rates has nothing to do with it. Someone who knows the task knows this, and the label does not say it.
+
+A teacher model does say it, if you look at its probabilities instead of its top answer.
+
+<ProbBars
+  caption="A teacher's view of “I still haven't got my new card.” (illustrative numbers)"
+  items={[
+    { label: "card_arrival", percent: 71 },
+    { label: "card_delivery_estimate", percent: 14 },
+    { label: "lost_or_stolen_card", percent: 4 },
+    { label: "order_physical_card", percent: 2 },
+    { label: "exchange_rate", percent: 0.01 },
+  ]}
+/>
+
+Geoffrey Hinton called this <mark>dark knowledge</mark>: what a model knows about how the wrong answers relate to the right one. A student trained on these probabilities learns something from every type on every example, not from one type.
+
+## Why this helps most with few labels
+
+<PredictReveal
+  client:load
+  id="how-many-facts"
+  prompt="A student sees one training message. With a plain label it learns which of 77 types is right. With the teacher's probabilities, roughly how much does it learn from that one message?"
+  options={["About the same: one fact", "Something about every one of the 77 types", "Less, because probabilities are noisier than labels"]}
+>
+  Something about every type. The probabilities tell the student which types are close to this message and which are far away, all at once. This is why a student can learn more from a few thousand teacher-scored messages than the count alone suggests, and why the effect is strongest when human labels are scarce.
+</PredictReveal>
+
+It matters most where types are easy to confuse. In Module 2 you saw that the weak spots on Banking77 are pairs of near-identical types. A plain label gives a student no hint that two types are neighbors. The teacher's probabilities show it on every example where the two compete.
+
+## White-box distillation
+
+<mark>White-box distillation</mark> trains the student to match the teacher's probabilities, not just its answers. It is called white-box because you have to see inside the teacher: an API that returns text does not show you these numbers, so you need a model whose weights you can run yourself.
+
+The rest of this module covers the three things you need:
+
+1. How to read a probability for every type out of a language model.
+2. Temperature, a setting that controls how much of the teacher's uncertainty the student sees.
+3. The loss that pulls the student toward the teacher's probabilities and the human labels at once.
+
+Then you will run it and measure how much of the gap from Module 2 it closes.
+
+<ReviewCard
+  client:load
+  fromModule="Baselines and evaluation"
+  question="What does “gap closed” measure?"
+>
+  The share of the distance from the baseline to the teacher that the distilled student covered: (distilled − baseline) ÷ (teacher − baseline).
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="03-white-box/01-what-the-teacher-knows"
+  id="why-white-box"
+  question="Why can't white-box distillation use a teacher that is only available through a text API?"
+  options={[
+    {
+      text: "API models are too large to learn from",
+      feedback: "Size is not the obstacle. Module 4 distills from API teachers using their text answers.",
+    },
+    {
+      text: "The API returns the teacher's answer, not its probability for every possible answer",
+      correct: true,
+      feedback: "White-box distillation needs the full set of probabilities, which you can only read from a model you run yourself.",
+    },
+    {
+      text: "API terms never allow training on outputs",
+      feedback: "Terms vary and must be checked, but that is a separate question. The technical obstacle is that the probabilities are not exposed.",
+    },
+  ]}
+/>

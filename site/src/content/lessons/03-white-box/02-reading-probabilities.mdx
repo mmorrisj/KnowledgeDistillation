@@ -1,0 +1,112 @@
+---
+title: Reading a teacher's probabilities
+order: 2
+minutes: 12
+objectives:
+  - Describe how a text-generation model is made to score every type
+  - Explain why teacher scores are computed once and saved
+  - Say when teacher and student need the same tokenizer and when they do not
+---
+
+import PipelineDiagram from "../../../components/PipelineDiagram.astro";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+The teacher in this course is a text-generation model. It was never built to output 77 numbers, one per type. This lesson shows how to get them anyway.
+
+## From next-token probabilities to type probabilities
+
+Recall from Module 1 that a language model gives a probability to every possible next token. A type name such as `card_arrival` is a short run of tokens. The probability that the model would write that whole name is the product of the probabilities of its tokens, each given the ones before.
+
+So for one message:
+
+1. Give the model the same prompt as in Module 2: the instructions, the list of types, and the message.
+2. For each of the 77 type names, work out how likely the model is to write exactly that name next.
+3. Rescale the 77 results so they add up to 100%.
+
+No text is generated. The model is only asked, 77 times, "how likely is this continuation?"
+
+## Making it fast
+
+Done naively, that is 77 passes through a large model for every message, each re-reading a prompt of several hundred tokens. Two savings make it practical.
+
+<PipelineDiagram
+  steps={[
+    { label: "Read the shared part once", detail: "The instructions and the list of types are identical for every message." },
+    { label: "Read the message", detail: "A few dozen tokens, on top of the saved work." },
+    { label: "Score all types together", detail: "All 77 type names in one batch, a handful of tokens each." },
+    { label: "Normalize", detail: "Rescale the 77 scores to add up to 100%." },
+    { label: "Save to disk", detail: "The teacher never has to score this message again." },
+  ]}
+/>
+
+The first saving reuses work the model has already done. A transformer can keep its internal state for text it has read and carry on from there, so the long shared part of the prompt is read once for the whole dataset.
+
+The second saving is the last step. Scoring is the slow part of white-box distillation, and its output does not depend on anything about the student. Compute it once, save it, and every later experiment with temperature, loss weights or student size reads the saved file. It also means the teacher and the student never need to be on the GPU at the same time.
+
+<WorkedExample
+  title="Scoring with the course package"
+  notes={[
+    "The file name identifies what was scored. If it exists, it is loaded and the model is not run.",
+    "One row per message, one number per type. The numbers are log-probabilities.",
+    "The saved file remembers which messages it belongs to, and refuses to load for different ones.",
+    "The teacher's top choice per message, for comparing with its Module 2 answers.",
+  ]}
+>
+
+```python
+from kd_course.label_scoring import score_or_load, top_labels
+from kd_course.results import default_results_dir
+
+pool_scores = score_or_load(
+    default_results_dir() / "teacher_scores" / "pool.json",  # 1
+    teacher, tokenizer,
+    splits.pool.texts, LABELS,                   # 2, 3
+    progress_every=500,
+)
+teacher_choice = top_labels(pool_scores)         # 4
+```
+
+</WorkedExample>
+
+## A size note for later
+
+With 77 types, saving every probability for every message costs almost nothing. That stops being true when the student is learning to generate text: there the teacher has a probability for each of more than 100,000 tokens at every position. Module 6 deals with that by keeping only the top few.
+
+## Do teacher and student need the same tokenizer?
+
+It depends on what the probabilities are over.
+
+- **Over types**, as in this module: no. The teacher's 77 numbers and the student's 77 numbers line up by type, whatever tokens each model used to read the message. That is why a Qwen teacher can train a ModernBERT student here.
+- **Over next tokens**, as in Module 6: yes. The student must predict the same tokens the teacher did, so both must split text the same way. This is why the generation modules use a teacher and a student from one model family.
+
+<ReviewCard
+  client:load
+  fromModule="Foundations"
+  question="How does a language model turn text into a prediction?"
+>
+  It splits the text into tokens and gives a score to every possible next token. Softmax turns those scores into probabilities that add up to 100%.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="03-white-box/02-reading-probabilities"
+  id="why-save"
+  question="Why are the teacher's scores saved to disk instead of being computed during student training?"
+  options={[
+    {
+      text: "Because saved scores are more accurate",
+      feedback: "They are the same numbers either way. Saving them changes cost, not accuracy.",
+    },
+    {
+      text: "Because scoring is slow, does not depend on the student, and would otherwise need both models on the GPU at once",
+      correct: true,
+      feedback: "Score once, then run as many student experiments as you like from the saved file, with only the small student on the GPU.",
+    },
+    {
+      text: "Because the teacher changes its answers each time it is asked",
+      feedback: "Scoring does not sample anything, so the teacher gives the same numbers every time.",
+    },
+  ]}
+/>

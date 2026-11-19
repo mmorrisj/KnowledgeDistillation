@@ -3,10 +3,23 @@ import { expect, test, type Page } from "@playwright/test";
 
 const LESSON = "/modules/00-sample/01-components/";
 
-/** Interactive parts are server-rendered first; wait until they respond to input. */
+/**
+ * Interactive parts are server-rendered first. Wait until React has attached to every
+ * one of them, so a click or a slider change is not lost.
+ */
+async function hydrated(page: Page) {
+  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll("astro-island")].every((island) => {
+      const first = island.firstElementChild;
+      return !first || Object.keys(first).some((key) => key.startsWith("__react"));
+    }),
+  );
+}
+
 async function openLesson(page: Page) {
   await page.goto(LESSON);
-  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await hydrated(page);
 }
 
 test("a student can answer a quiz and keep progress across a reload", async ({ page }) => {
@@ -20,7 +33,7 @@ test("a student can answer a quiz and keep progress across a reload", async ({ p
   await expect(page.getByText("Completed", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await hydrated(page);
   await expect(page.getByText("Completed", { exact: true })).toBeVisible();
   await expect(page.getByText("Correct.")).toBeVisible();
 });
@@ -71,6 +84,11 @@ const LESSONS = [
   ["02-baselines/03-choosing-a-metric", "Choosing a metric"],
   ["02-baselines/04-is-the-difference-real", "Is the difference real?"],
   ["02-baselines/05-lab-baselines", "Lab: baselines"],
+  ["03-white-box/01-what-the-teacher-knows", "What the teacher knows"],
+  ["03-white-box/02-reading-probabilities", "Reading a teacher's probabilities"],
+  ["03-white-box/03-temperature", "Temperature"],
+  ["03-white-box/04-the-distillation-loss", "The distillation loss"],
+  ["03-white-box/05-lab-white-box", "Lab: white-box distillation"],
 ] as const;
 
 for (const [slug, title] of LESSONS) {
@@ -78,7 +96,7 @@ for (const [slug, title] of LESSONS) {
     test(`lesson "${title}" renders with no serious accessibility violations (${scheme})`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto(`/modules/${slug}/`);
-      await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+      await hydrated(page);
       await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
       const results = await new AxeBuilder({ page }).analyze();
       const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
@@ -95,14 +113,14 @@ test("the home page starts at Why distill and does not list the component sample
 
 test("completing a lesson moves the course progress bar", async ({ page }) => {
   await page.goto("/modules/01-foundations/01-why-distill/");
-  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await hydrated(page);
   await page.getByRole("button", { name: "Mark lesson complete" }).click();
   await expect(page.getByText(/^1 of \d+ lessons complete$/)).toBeVisible();
 });
 
 test("the cost calculator updates when requests per day changes", async ({ page }) => {
   await page.goto("/modules/01-foundations/01-why-distill/");
-  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await hydrated(page);
   const results = page.getByRole("status").filter({ hasText: "Cost per day" });
   await expect(results).toContainText("self-hosted student is cheaper");
   await page.getByLabel("Requests per day").fill("1000");
@@ -111,7 +129,7 @@ test("the cost calculator updates when requests per day changes", async ({ page 
 
 test("the training loop explorer shows what distillation changes", async ({ page }) => {
   await page.goto("/modules/01-foundations/02-how-transformers-learn/");
-  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await hydrated(page);
   await page.getByRole("button", { name: "Distillation", exact: true }).click();
   await expect(page.locator('[data-stage="target"]')).toContainText("Changes here");
   await expect(page.getByText("Changes here")).toHaveCount(1);
@@ -119,7 +137,7 @@ test("the training loop explorer shows what distillation changes", async ({ page
 
 test("the interval explorer changes its verdict as the test set grows", async ({ page }) => {
   await page.goto("/modules/02-baselines/04-is-the-difference-real/");
-  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await hydrated(page);
   const results = page.getByRole("status").filter({ hasText: "likely between" });
   await expect(results).toContainText("cannot tell");
   await page.getByLabel("Number of test messages").fill("20000");
@@ -128,7 +146,23 @@ test("the interval explorer changes its verdict as the test set grows", async ({
 
 test("the gap-closed calculator reports the share of the gap", async ({ page }) => {
   await page.goto("/modules/02-baselines/01-three-numbers/");
-  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await hydrated(page);
   await page.getByLabel("Distilled student accuracy").fill("75");
   await expect(page.getByText("closed 100% of the gap")).toBeVisible();
+});
+
+test("the temperature explorer flattens the distribution", async ({ page }) => {
+  await page.goto("/modules/03-white-box/03-temperature/");
+  await hydrated(page);
+  await page.getByRole("slider", { name: "Temperature" }).fill("6");
+  await expect(page.getByRole("status").filter({ hasText: "Temperature 6.0" })).toContainText("flatter");
+});
+
+test("the loss explorer explains alpha at its extremes", async ({ page }) => {
+  await page.goto("/modules/03-white-box/04-the-distillation-loss/");
+  await hydrated(page);
+  await page.getByRole("slider", { name: /Alpha/ }).fill("0");
+  await expect(page.getByRole("status").filter({ hasText: "Teacher term" })).toContainText(
+    "ordinary fine-tuning on the human label",
+  );
 });
