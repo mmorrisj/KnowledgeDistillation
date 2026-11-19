@@ -94,6 +94,11 @@ const LESSONS = [
   ["04-black-box/03-labelling-the-pool", "Labelling the pool"],
   ["04-black-box/04-writing-new-examples", "Writing new examples"],
   ["04-black-box/05-lab-black-box", "Lab: black-box distillation"],
+  ["05-lora/01-the-cost-of-moving-every-weight", "The cost of moving every weight"],
+  ["05-lora/02-how-lora-works", "How LoRA works"],
+  ["05-lora/03-choosing-the-settings", "Choosing the settings"],
+  ["05-lora/04-qlora-and-merging", "QLoRA and merging"],
+  ["05-lora/05-lab-lora", "Lab: a generative student with LoRA"],
 ] as const;
 
 for (const [slug, title] of LESSONS) {
@@ -179,4 +184,21 @@ test("the prompt cost estimator grows with examples", async ({ page }) => {
   await expect(result).toContainText("599 tokens");
   await page.getByRole("slider", { name: "Examples per type in the prompt" }).fill("2");
   await expect(result).toContainText("3,987 tokens");
+});
+
+test("the memory explorer shows what fits on one card", async ({ page }) => {
+  await page.goto("/modules/05-lora/01-the-cost-of-moving-every-weight/");
+  await hydrated(page);
+  const status = page.getByRole("status").filter({ hasText: "for the model while training" });
+  await page.getByRole("button", { name: "7.6B" }).click();
+  await expect(status).toContainText("does not fit");
+  await page.getByRole("button", { name: "QLoRA" }).click();
+  await expect(status).toContainText("It fits");
+});
+
+test("the LoRA size explorer responds to rank", async ({ page }) => {
+  await page.goto("/modules/05-lora/02-how-lora-works/");
+  await hydrated(page);
+  await page.getByRole("slider", { name: "Rank" }).fill("4");
+  await expect(page.getByRole("status").filter({ hasText: "The full matrix has" })).toContainText("7,168");
 });

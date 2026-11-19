@@ -1,0 +1,125 @@
+---
+title: How LoRA works
+order: 2
+minutes: 14
+objectives:
+  - Describe a LoRA update as two thin matrices added beside a frozen one
+  - Work out how many weights LoRA trains for a given rank
+  - Explain why a LoRA layer starts out identical to the original, and how it is merged back
+---
+
+import LoraSizeExplorer from "../../../components/LoraSizeExplorer.tsx";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+LoRA rests on one observation: when a pretrained model is adapted to a task, the change to each weight matrix is much simpler than the matrix itself. A simple change can be stored in far fewer numbers.
+
+## The idea
+
+Most of a transformer's weights sit in large square-ish matrices. Call one of them W. Fine-tuning changes it to W plus some change.
+
+Full fine-tuning learns that change as a whole new matrix, as large as W. LoRA writes the change as the product of two thin matrices, B and A:
+
+> new output = W x + B A x
+
+W stays frozen. Only B and A are trained. The number of columns in B, which is the number of rows in A, is the <mark>rank</mark>. It is the one setting that controls how much the update can express and how many weights it costs.
+
+<LoraSizeExplorer client:load />
+
+At rank 16 on the small student, LoRA trains under 4% of the weights in that layer. On the larger models the share is smaller still, because the full matrix grows with the square of its width and the LoRA matrices grow only in proportion to it.
+
+## Starting from no change
+
+<PredictReveal
+  client:load
+  id="start-zero"
+  prompt="At the first step of LoRA training, before any update, how does the model's output compare with the original model's?"
+  options={["Slightly different, because A and B are random", "Exactly the same", "Very different until training settles"]}
+>
+  Exactly the same. A starts with small random values and B starts as all zeros, so their product is zero and the layer behaves exactly as it did before. Training then moves away from the pretrained model gradually. If both started random, the first step would throw away some of what pretraining learned.
+</PredictReveal>
+
+## LoRA in fifteen lines
+
+The lab uses a library for this, but the whole idea fits in one small class. This is the course's own from-scratch version, in `kd_course.lora`.
+
+<WorkedExample
+  title="A LoRA layer from scratch"
+  notes={[
+    "The original layer is kept and frozen.",
+    "A scaling factor. The update is multiplied by alpha divided by rank, so that changing the rank does not change the size of the update much.",
+    "A is rank by inputs, B is outputs by rank. B starts at zero.",
+    "The output is the original output plus the low-rank update.",
+    "Merging: multiply B by A to get a full-size matrix and add it to W. The result is an ordinary layer.",
+  ]}
+>
+
+```python
+class LoRALinear(torch.nn.Module):
+    def __init__(self, base, rank=8, alpha=16.0):
+        super().__init__()
+        self.base = base
+        for p in self.base.parameters():
+            p.requires_grad_(False)                              # 1
+        self.scale = alpha / rank                                # 2
+        self.lora_a = torch.nn.Parameter(
+            torch.empty(rank, base.in_features))                 # 3
+        self.lora_b = torch.nn.Parameter(
+            torch.zeros(base.out_features, rank))
+        torch.nn.init.kaiming_uniform_(self.lora_a, a=5**0.5)
+
+    def forward(self, x):
+        return self.base(x) + self.scale * (
+            x @ self.lora_a.T @ self.lora_b.T)                   # 4
+
+    def merged_weight(self):
+        return self.base.weight + self.scale * (
+            self.lora_b @ self.lora_a)                           # 5
+```
+
+</WorkedExample>
+
+## Merging
+
+Because B times A is a matrix the same shape as W, the two can be added together once training is done. The merged model is an ordinary model with no extra layers, no extra work at prediction time, and exactly the same outputs as the unmerged one.
+
+You then have a choice of how to ship it:
+
+- **Keep the adapter separate.** One base model, many small adapters, swapped per task. Good when you serve several tasks.
+- **Merge it.** One self-contained model. Good when you serve one task and want the simplest deployment.
+
+## Where the adapters go
+
+LoRA is not applied to every layer. It is attached to chosen weight matrices, most often those in the attention layers. The lab attaches it to the four attention matrices in every block, which is a common default. The next lesson covers when to change that.
+
+<ReviewCard
+  client:load
+  fromModule="The cost of moving every weight"
+  question="After LoRA training, is the model you run smaller than before?"
+>
+  No. It is the same base model plus a small adapter. LoRA makes training cheaper, not the model smaller.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="05-lora/02-how-lora-works"
+  id="double-rank"
+  question="You double the rank from 16 to 32. What happens to the number of weights LoRA trains?"
+  options={[
+    {
+      text: "It doubles",
+      correct: true,
+      feedback: "Both thin matrices have one side equal to the rank, so the count grows in a straight line with it.",
+    },
+    {
+      text: "It quadruples",
+      feedback: "That would be true of a full square matrix. The LoRA matrices each have only one side that depends on the rank.",
+    },
+    {
+      text: "It stays the same",
+      feedback: "The rank sets the size of both matrices, so changing it changes the count.",
+    },
+  ]}
+/>

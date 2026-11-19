@@ -1,0 +1,111 @@
+---
+title: Choosing the settings
+order: 3
+minutes: 10
+objectives:
+  - Pick a starting rank, scaling and learning rate for a LoRA run
+  - Recognize when LoRA is holding the student back
+  - Tune the settings on validation data without wasting runs
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import SortDrill from "../../../components/SortDrill.tsx";
+
+LoRA adds a handful of settings to the ones you already know. Most of the time the defaults are fine, and the useful skill is knowing which one to change when they are not.
+
+## The settings and where to start
+
+<div class="table-wrap">
+
+| Setting | What it controls | Starting value | Change it when |
+|---|---|---|---|
+| Rank | How much the update can express | 16 | The task is very different from what the model already does: go higher. The task is simple or data is scarce: go lower |
+| Alpha | How strongly the update is applied; the update is scaled by alpha ÷ rank | Twice the rank | Rarely. Keep the ratio fixed when you change the rank |
+| Target layers | Which weight matrices get adapters | The attention matrices | Results trail full fine-tuning: add the feed-forward matrices too |
+| Dropout | Randomly ignores part of the update while training, to limit overfitting | 0.05 | Training data is small and validation scores fall while training loss keeps dropping: raise it |
+| Learning rate | Step size | About 2e-4 | Loss jumps around: lower it. Loss barely moves: raise it |
+
+</div>
+
+## The learning rate is the one that surprises people
+
+Full fine-tuning of a transformer typically uses a learning rate around 2e-5. LoRA wants roughly ten times that. The adapters start from nothing and have to learn the whole change, while the frozen weights keep the model stable. Using a full fine-tuning learning rate with LoRA is the most common reason a first LoRA run "doesn't learn".
+
+## Rank is not a quality dial
+
+A higher rank lets the update express more, and it is tempting to turn it up. Past the point the task needs, extra rank adds weights without adding accuracy, and with little data it can overfit. For a narrow task such as sorting messages into fixed types, low ranks usually do as well as high ones. You will test this in the lab.
+
+## When LoRA falls short
+
+Sometimes a LoRA-trained student scores a little below the same student fully fine-tuned. Try, in this order:
+
+1. Check the learning rate.
+2. Add adapters to more layers.
+3. Raise the rank.
+4. If the model is small enough to fully fine-tune on your card, do that. LoRA exists for when you cannot.
+
+## Tune on validation, and tune little
+
+Every setting is chosen the way temperature and prompts were: compare on the validation set, score the winner once on the test set. With a few hundred validation messages, differences of a point or two between settings are noise. Change one thing at a time, and stop when the changes stop mattering.
+
+## Which setting would you change?
+
+<SortDrill
+  client:load
+  lessonId="05-lora/03-choosing-the-settings"
+  id="which-setting"
+  categories={["Learning rate", "Rank", "Target layers"]}
+  items={[
+    {
+      text: "The loss barely moves from its starting value after a full epoch.",
+      answer: "Learning rate",
+      why: "The steps are too small. This is typical when a full fine-tuning learning rate is used with LoRA.",
+    },
+    {
+      text: "The task is far from anything the base model does, and rank 8 trails full fine-tuning.",
+      answer: "Rank",
+      why: "A larger change needs an update that can express more.",
+    },
+    {
+      text: "Rank 16 and rank 64 score the same, both below full fine-tuning.",
+      answer: "Target layers",
+      why: "More rank is not helping, so the limit is where the adapters are. Attach them to more matrices.",
+    },
+    {
+      text: "The loss swings up and down from step to step.",
+      answer: "Learning rate",
+      why: "The steps are too large. Lower the learning rate.",
+    },
+  ]}
+/>
+
+<ReviewCard
+  client:load
+  fromModule="How LoRA works"
+  question="Why does a LoRA layer behave exactly like the original layer before training starts?"
+>
+  Because one of its two matrices starts as all zeros, so their product, the update, is zero.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="05-lora/03-choosing-the-settings"
+  id="first-run"
+  question="Your first LoRA run uses rank 16 and a learning rate of 2e-5, copied from a full fine-tuning script. The loss hardly falls. What do you change first?"
+  options={[
+    {
+      text: "Raise the rank to 128",
+      feedback: "More rank does not help if the steps are too small to move the adapters at all.",
+    },
+    {
+      text: "Raise the learning rate to about 2e-4",
+      correct: true,
+      feedback: "LoRA usually needs a learning rate about ten times higher than full fine-tuning.",
+    },
+    {
+      text: "Train for ten times as many epochs",
+      feedback: "It might get there eventually, at ten times the cost. Fixing the step size is the direct remedy.",
+    },
+  ]}
+/>

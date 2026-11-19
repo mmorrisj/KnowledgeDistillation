@@ -1,0 +1,102 @@
+---
+title: "Lab: a generative student with LoRA"
+order: 5
+minutes: 10
+objectives:
+  - Train a text-generation student to write the type of a message
+  - Compare full fine-tuning and LoRA on trainable weights, memory, time and accuracy
+  - Merge an adapter and confirm the merged model behaves the same
+lab:
+  title: A generative student with LoRA
+  path: labs/05_lora/01_lora.ipynb
+  minutes: 40
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+This lab changes the student. It is now a model that writes text, trained to write the type of each message. It needs results from Labs 2 and 3.
+
+## A shorter prompt
+
+In Module 2 the prompted teacher needed the list of all 77 types in every request, about 600 tokens. A trained student has learned the types, so its prompt is the message and one word:
+
+> Message: I still haven't got my new card.<br />Type:
+
+That is about 30 tokens in place of 600. Training is fast because the examples are short, and the finished student is cheap to run for the same reason. This is one of the practical gains of distilling a prompted model into a trained one.
+
+## What the lab does
+
+The training data is the same for every run: the 616 gold messages plus the pool, labelled with the teacher's top choice from the scores you saved in Lab 3. Only the student and the way it is trained change.
+
+1. **0.5B student, full fine-tune.** Every weight moves.
+2. **0.5B student, LoRA.** The same model with adapters. Compare trainable weights, memory, time and accuracy with run 1. The adapter is saved and its size on disk is compared with the full model's.
+3. **Merge check.** The adapter is merged into the model and the merged model's answers are compared with the unmerged model's.
+4. **1.5B student, LoRA.** A model three times larger, on the same card.
+5. **A rank comparison**, chosen on validation data.
+6. **Optional: QLoRA on the 7B model**, for a few steps, to see it fit.
+
+## Before you look at the results
+
+Predict and write down:
+
+- How will LoRA's accuracy compare with full fine-tuning on the 0.5B student?
+- Will the 1.5B student beat the 0.5B student? By enough to matter?
+- Will rank 4 do worse than rank 64?
+
+## Reading the results
+
+The lab prints two tables.
+
+**The cost table** shows, for each run, the share of weights trained, the peak GPU memory and the time. Expect LoRA to train a few tenths of a percent to a few percent of the weights.
+
+**The results table** adds these students to everything from earlier labs. Look for:
+
+- **Full fine-tune against LoRA on the same model.** A small gap either way is normal. Use the paired comparison before reading anything into it.
+- **0.5B against 1.5B.** If the larger student is no better on this task, the smaller one is the better choice: it is cheaper to run forever.
+- **Generative students against the encoder from Lab 3.** For plain classification, a small encoder is often as accurate and much faster. Generative students earn their cost on tasks where the output is text, which is Module 6.
+- **Unusable replies.** A generative student can write something that is not a type. A well-trained one rarely does.
+
+## If something goes wrong
+
+<div class="table-wrap">
+
+| What you see | Likely cause | What to do |
+|---|---|---|
+| "Run Lab 3 first" | The saved teacher scores are missing | Run Lab 3, or at least its scoring step |
+| Out of memory in a LoRA run | An earlier model is still on the GPU | Restart the notebook; finished results are saved and can be skipped |
+| LoRA accuracy near zero | The learning rate was changed to a full fine-tuning value | Use about 2e-4 for LoRA |
+| The merge check reports differences | The comparison ran while the model was in training mode | Run the cell again; the lab switches the model to evaluation mode first |
+| The QLoRA cell fails to import | The 4-bit library is not installed or not supported on this machine | Skip it; it is optional |
+
+</div>
+
+<ReviewCard
+  client:load
+  fromModule="QLoRA and merging"
+  question="After merging an adapter into its base model, how should the merged model's answers compare with the unmerged model's?"
+>
+  They should be the same. Merging adds the low-rank update into the weights; it does not change what the model computes.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="05-lora/05-lab-lora"
+  id="smaller-wins"
+  question="The 1.5B student scores 0.4 points above the 0.5B student, and the paired interval includes zero. Which do you deploy?"
+  options={[
+    {
+      text: "The 1.5B student, because it scored higher",
+      feedback: "The difference is not shown to be real, and the larger model costs about three times as much to run on every request.",
+    },
+    {
+      text: "The 0.5B student: the two cannot be told apart, and it is cheaper to run",
+      correct: true,
+      feedback: "When quality is indistinguishable, the cheaper model wins. Training cost is paid once; serving cost is paid on every request.",
+    },
+    {
+      text: "Neither, until a larger test set separates them",
+      feedback: "A larger test set might show a small real gap, but a gap that small rarely justifies three times the serving cost.",
+    },
+  ]}
+/>
