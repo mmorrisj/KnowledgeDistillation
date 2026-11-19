@@ -1,0 +1,19 @@
+---
+import "./components.css";
+
+interface Props {
+  title: string;
+  notes: string[];
+}
+const { title, notes } = Astro.props;
+---
+
+<section class="card worked" aria-label="Worked example">
+  <p class="card-kicker">Worked example · {title}</p>
+  <div class="worked-body">
+    <div class="worked-code"><slot /></div>
+    <ol class="worked-notes">
+      {notes.map((note) => <li>{note}</li>)}
+    </ol>
+  </div>
+</section>

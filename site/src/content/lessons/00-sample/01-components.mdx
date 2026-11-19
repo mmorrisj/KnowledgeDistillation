@@ -11,15 +11,87 @@ lab:
   minutes: 5
 ---
 
+import ConceptGrid from "../../../components/ConceptGrid.tsx";
 import PredictReveal from "../../../components/PredictReveal.tsx";
 import Quiz from "../../../components/Quiz.tsx";
 import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
 
 This page is a working sample for course authors. It shows each building block a lesson can use, with real course content, so you can see how a finished lesson reads.
 
 ## Soft targets in one paragraph
 
 A hard label tells the student only that the answer is "mat". The teacher's probabilities say more: "floor" and "rug" are reasonable, "banana" is not. Hinton called this <mark>dark knowledge</mark>, and it is most of what the student learns from.
+
+## The map
+
+Two choices are independent: where the training signal comes from, and how the student's weights are updated. Select a cell to see what it means.
+
+<ConceptGrid
+  client:visible
+  rows={["Black-box (API teacher, text only)", "White-box (open weights, probabilities)"]}
+  cols={["Full fine-tune", "LoRA / QLoRA"]}
+  cells={[
+    {
+      row: 0, col: 0,
+      title: "Train on teacher-written labels",
+      summary: "Use the API teacher to label or write training examples, then train every weight of a small student on them.",
+      example: "An API model labels 20,000 support requests; fine-tune ModernBERT-base on them",
+      bestFor: "Small students, under about 0.5 billion parameters",
+      taughtIn: "Module 4",
+    },
+    {
+      row: 0, col: 1,
+      title: "Teacher-written labels with LoRA",
+      summary: "The same training data, but only small adapter matrices are trained. This lets a larger student fit on one GPU.",
+      example: "API-written summaries; Qwen2.5-3B with rank-16 adapters",
+      bestFor: "Students of 1 to 8 billion parameters on a 24 GB card",
+      taughtIn: "Modules 4 and 5",
+    },
+    {
+      row: 1, col: 0,
+      title: "Match the teacher's probabilities",
+      summary: "The student matches the open teacher's softened probabilities, not just its final answer. Teacher and student must split text into tokens the same way.",
+      example: "Qwen2.5-7B teacher, Qwen2.5-0.5B student, temperature 2",
+      bestFor: "Classification, or small students that can be fully fine-tuned",
+      taughtIn: "Module 3",
+    },
+    {
+      row: 1, col: 1,
+      title: "Match probabilities with LoRA",
+      summary: "The same loss trains adapters on a larger student. The teacher's top probabilities are saved to disk first, so the two models never share the GPU.",
+      example: "Saved top-20 probabilities from a 7B teacher; 1.5B student with adapters",
+      bestFor: "Text generation, where a 0.5B student is too weak",
+      taughtIn: "Modules 3, 5 and 6",
+    },
+  ]}
+/>
+
+## Worked example
+
+Code is shown complete first, with numbered notes beside it. Later lessons leave gaps for the student to fill.
+
+<WorkedExample
+  title="The distillation loss"
+  notes={[
+    "Teacher and student use the same temperature T.",
+    "kl_div expects log-probabilities as its first argument. Getting this wrong is the most common bug.",
+    "Gradients shrink by about 1/T². Multiplying by T² keeps the loss on a similar scale as you tune T.",
+    "alpha balances learning from the teacher against learning from the true labels.",
+  ]}
+>
+
+```python
+def kd_loss(s_logits, t_logits, labels, T=2.0, alpha=0.5):
+    soft_t = F.softmax(t_logits / T, dim=-1)          # 1
+    log_s = F.log_softmax(s_logits / T, dim=-1)       # 2
+    kd = F.kl_div(log_s, soft_t,
+                  reduction="batchmean") * T**2       # 3
+    ce = F.cross_entropy(s_logits, labels)
+    return alpha * kd + (1 - alpha) * ce              # 4
+```
+
+</WorkedExample>
 
 ## Predict first
 

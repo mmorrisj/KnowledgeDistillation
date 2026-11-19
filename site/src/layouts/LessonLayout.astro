@@ -1,5 +1,8 @@
 ---
 import BaseLayout from "./BaseLayout.astro";
+import CompleteLesson from "../components/CompleteLesson.tsx";
+import LabCard from "../components/LabCard.tsx";
+import ProgressBar from "../components/ProgressBar.tsx";
 import Sidebar from "../components/Sidebar.astro";
 import { MODULES } from "../content/modules";
 import { adjacent, type NavModule } from "../lib/nav";
@@ -18,10 +21,13 @@ const moduleSlug = id.split("/")[0];
 const module = MODULES.find((m) => m.slug === moduleSlug);
 const lessonNumber = (nav.find((m) => m.slug === moduleSlug)?.lessons.findIndex((l) => l.id === id) ?? 0) + 1;
 const { prev, next } = adjacent(nav, id);
+const allLessonIds = nav.flatMap((m) => m.lessons.map((l) => l.id));
 ---
 
 <BaseLayout title={title}>
-  <Sidebar slot="sidebar" nav={nav} currentId={id} />
+  <Sidebar slot="sidebar" nav={nav} currentId={id}>
+    <ProgressBar slot="progress" client:load lessonIds={allLessonIds} />
+  </Sidebar>
   <header class="lesson-head">
     <p class="eyebrow">{module?.title} · Lesson {lessonNumber}</p>
     <h1>{title}</h1>
@@ -39,7 +45,8 @@ const { prev, next } = adjacent(nav, id);
   <article class="prose">
     <slot />
   </article>
-  <slot name="after" />
+  {lab && <LabCard client:load title={lab.title} path={lab.path} minutes={lab.minutes} />}
+  <CompleteLesson client:load lessonId={id} />
   <nav class="pager" aria-label="Lesson">
     {prev ? <a class="btn" href={prev.href}>← {prev.title}</a> : <span />}
     {next ? <a class="btn" href={next.href}>{next.title} →</a> : <span />}
