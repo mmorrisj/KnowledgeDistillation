@@ -2,7 +2,7 @@ import type { ModuleInfo } from "../lib/nav";
 
 /** Course modules in reading order. Lessons attach to a module by folder name. */
 export const MODULES: ModuleInfo[] = [
-  { slug: "00-sample", title: "Component sampler", status: "available" },
+  { slug: "00-sample", title: "Component sampler", status: "available", hidden: true },
   { slug: "01-foundations", title: "Foundations", status: "planned" },
   { slug: "02-baselines", title: "Baselines and evaluation", status: "planned" },
   { slug: "03-white-box", title: "White-box distillation", status: "planned" },

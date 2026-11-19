@@ -195,3 +195,55 @@
     position: static;
   }
 }
+
+/* Tables and figures inside lessons */
+.prose .table-wrap {
+  overflow-x: auto;
+}
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9375rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.prose th,
+.prose td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.prose thead th {
+  font-family: var(--font-display);
+  background: var(--soft);
+}
+.prose tbody tr:last-child td,
+.prose tbody tr:last-child th {
+  border-bottom: 0;
+}
+.prose blockquote {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  max-width: var(--measure);
+}
+.prose .checklist {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.prose .checklist li {
+  display: grid;
+  grid-template-columns: 1.4rem 1fr;
+  gap: var(--space-2);
+}
+.prose .checklist li::before {
+  content: "☐";
+  color: var(--accent);
+  font-weight: 700;
+}

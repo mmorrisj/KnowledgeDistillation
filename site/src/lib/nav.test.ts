@@ -25,6 +25,10 @@ describe("buildNav", () => {
     const nav = buildNav(lessons, modules);
     expect(nav[1].lessons[0].href).toBe("/modules/02-b/01-only/");
   });
+  it("omits modules marked hidden", () => {
+    const withHidden = [...modules, { slug: "00-x", title: "X", status: "available" as const, hidden: true }];
+    expect(buildNav(lessons, withHidden).map((m) => m.slug)).not.toContain("00-x");
+  });
   it("ignores lessons whose module is not in MODULES", () => {
     const ids = buildNav(lessons, modules).flatMap((m) => m.lessons.map((l) => l.id));
     expect(ids).not.toContain("99-ghost/01-x");

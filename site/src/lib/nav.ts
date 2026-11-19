@@ -1,11 +1,19 @@
-export type ModuleInfo = { slug: string; title: string; status: "available" | "planned" };
+export type ModuleInfo = {
+  slug: string;
+  title: string;
+  status: "available" | "planned";
+  /** Built, but left out of the student sidebar and home page. */
+  hidden?: boolean;
+};
 export type LessonInfo = { id: string; title: string; order: number };
 export type NavLesson = { id: string; title: string; href: string };
 export type NavModule = ModuleInfo & { lessons: NavLesson[] };
 
 /** Group lessons under their module, in module order then lesson order. */
 export function buildNav(lessons: LessonInfo[], modules: ModuleInfo[]): NavModule[] {
-  return modules.map((module) => ({
+  return modules
+    .filter((module) => !module.hidden)
+    .map((module) => ({
     ...module,
     lessons: lessons
       .filter((lesson) => lesson.id.split("/")[0] === module.slug)
