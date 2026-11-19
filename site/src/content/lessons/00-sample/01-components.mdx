@@ -11,8 +11,63 @@ lab:
   minutes: 5
 ---
 
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
 This page is a working sample for course authors. It shows each building block a lesson can use, with real course content, so you can see how a finished lesson reads.
 
 ## Soft targets in one paragraph
 
 A hard label tells the student only that the answer is "mat". The teacher's probabilities say more: "floor" and "rug" are reasonable, "banana" is not. Hinton called this <mark>dark knowledge</mark>, and it is most of what the student learns from.
+
+## Predict first
+
+Students commit to a guess before they see the result. Being wrong first makes the explanation stick.
+
+<PredictReveal
+  client:visible
+  id="banana"
+  prompt="A teacher gives “banana” almost no probability for “The cat sat on the ____”. If you raise the temperature from 1 to 8, what happens to it?"
+  options={["It stays near 0%", "It rises, but stays the least likely", "It overtakes “roof”"]}
+>
+  It rises from about 0.002% to roughly 7%, but it stays the least likely word. Dividing every score by the same temperature changes how confident the teacher looks. It cannot change the order.
+</PredictReveal>
+
+## Check your understanding
+
+Each lesson ends with a short quiz. Every answer gets an explanation, not only a tick or a cross.
+
+<Quiz
+  client:visible
+  lessonId="00-sample/01-components"
+  id="api-teacher"
+  question="Your teacher is a frontier model you can only reach through an API that returns text. Which method can you use?"
+  options={[
+    {
+      text: "Logit distillation with temperature 4",
+      feedback: "Logit distillation needs the teacher's full list of probabilities. A text-only API does not expose them.",
+    },
+    {
+      text: "Train on teacher-generated labels",
+      correct: true,
+      feedback: "A text-only API gives you the teacher's answers, so you train on those as labels. Check the provider's terms before you do.",
+    },
+    {
+      text: "Either one works",
+      feedback: "Only one does. Without the teacher's probabilities there is nothing for logit distillation to match.",
+    },
+  ]}
+/>
+
+## Spaced review
+
+Questions from earlier modules come back in later lessons, so students practice recalling them.
+
+<ReviewCard
+  client:visible
+  fromModule="Baselines and evaluation"
+  question="What three scores do you report before claiming distillation helped?"
+>
+  The teacher's score (the ceiling), the student trained on the human labels alone (the baseline), and the distilled student. The gain is the distilled score minus the baseline.
+</ReviewCard>
