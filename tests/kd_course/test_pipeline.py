@@ -75,3 +75,73 @@ def test_white_box_lab_flow(tiny_lm, tiny_encoder_dir, tmp_path):  # noqa: F811
     )
     assert comparison.low <= comparison.difference <= comparison.high
     assert len(hard_pred) == len(soft_pred) == len(test)
+
+
+def test_black_box_lab_flow(tiny_encoder_dir, tmp_path):  # noqa: F811
+    from kd_course.metrics import teacher_verdict
+    from kd_course.synthetic import (
+        dedupe,
+        generate_examples,
+        labelled_from_predictions,
+        pick_examples,
+        round_trip_filter,
+    )
+    from kd_course.teachers import classify_with_teacher
+
+    labels = ["lost_card", "exchange_rate"]
+
+    class KeywordTeacher:
+        """A stand-in black-box teacher: answers by keyword, and can write new messages."""
+
+        def complete(self, prompts, max_new_tokens=16):
+            replies = []
+            for prompt in prompts:
+                if prompt.startswith("Write"):
+                    kind = "card lost" if "lost_card" in prompt else "euro rate"
+                    replies.append(f"1. my {kind}\n2. the {kind}\n3. my {kind}")
+                else:
+                    message = prompt.rsplit("Message:", 1)[1]
+                    replies.append("lost_card" if "card" in message else "exchange_rate")
+            return replies
+
+    teacher = KeywordTeacher()
+    gold = LabelledSet(texts=TRAIN.texts[:2] + TRAIN.texts[4:6], labels=[0, 0, 1, 1])
+    val = TRAIN
+    pool_texts = TRAIN.texts[2:4] + TRAIN.texts[6:]
+
+    examples = pick_examples(gold, labels, per_class=1, seed=0)
+    val_pred = classify_with_teacher(teacher, val.texts, labels, examples)
+    assert teacher_verdict(accuracy(val.labels, val_pred), 0.5, len(val)).split(":")[0] in {
+        "better",
+        "unclear",
+        "worse",
+    }
+
+    pool_labelled, dropped = labelled_from_predictions(
+        pool_texts, classify_with_teacher(teacher, pool_texts, labels, examples)
+    )
+    assert dropped == 0 and len(pool_labelled) == len(pool_texts)
+
+    seeds = {
+        label: [t for t, y in zip(gold.texts, gold.labels, strict=True) if y == label]
+        for label in (0, 1)
+    }
+    generated = generate_examples(teacher, labels, n_per_class=3, seed_examples=seeds)
+    generated, repeats = dedupe(generated, against=val.texts)
+    generated, off_type = round_trip_filter(teacher, generated, labels, examples)
+    assert repeats >= 2  # each type's reply repeats a message
+    assert off_type == 0
+
+    train = LabelledSet(
+        texts=gold.texts + pool_labelled.texts + generated.texts,
+        labels=gold.labels + pool_labelled.labels + generated.labels,
+    )
+    student = train_classifier(tiny_encoder_dir, train, val, num_labels=2, epochs=1, device="cpu")
+    predictions = predict(student, val.texts)
+    save_result(
+        "blackbox_plus_synthetic",
+        summarize(val.labels, predictions, 2, n_resamples=50),
+        predictions,
+        tmp_path,
+    )
+    assert "blackbox_plus_synthetic" in load_results(tmp_path)

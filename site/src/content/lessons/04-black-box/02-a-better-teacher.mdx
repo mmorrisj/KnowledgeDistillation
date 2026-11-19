@@ -1,0 +1,83 @@
+---
+title: A better teacher from the same model
+order: 2
+minutes: 12
+objectives:
+  - Improve a teacher's answers by changing its prompt, without changing the model
+  - Choose between prompts using the validation set
+  - Estimate how prompt length changes the cost of a labelling run
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import PromptCostEstimator from "../../../components/PromptCostEstimator.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+A student can only learn what its teacher shows it. So before labelling anything in bulk, get the best answers you can out of the model you have. The prompt is the cheapest place to look.
+
+## Three changes that usually help
+
+**Show examples.** The Module 2 prompt gave the teacher a list of 77 type names and nothing else. Names such as `card_arrival` and `card_delivery_estimate` are easy to confuse without seeing what each looks like. Adding one or two real messages for each type, with its type, often lifts accuracy more than anything else. This is called a few-shot prompt.
+
+The examples must come from the **gold training set**. Validation and test messages stay out of the prompt, for the reasons in lesson 2.2.
+
+**Explain the confusing types.** If the per-type scores from Module 2 show two types being mixed up, add a sentence to the prompt saying how they differ.
+
+**Tighten the format.** If many replies are unusable, the instructions are not clear enough about what to return. State it plainly: one type, copied exactly from the list, nothing else.
+
+## Choose on the validation set
+
+Each change gives you a new prompt. Score each one on the validation set and keep the best. The test set is not involved: it scores the finished student, once.
+
+Keep a note of what you tried and what each scored. With only a few hundred validation messages, small differences between prompts are inside the margin of error. Prefer the simpler, shorter prompt unless the longer one is clearly ahead.
+
+## Longer prompts cost more
+
+<PredictReveal
+  client:load
+  id="prompt-growth"
+  prompt="The plain prompt for this task is about 600 tokens. If you add two example messages for each of the 77 types, roughly how large does each request become?"
+  options={["About 700 tokens", "About 1,500 tokens", "About 4,000 tokens"]}
+>
+  About 4,000 tokens: more than six times larger. Every one of the 154 examples is sent again with every message you label. A change that looks small in the prompt is multiplied by the size of the pool.
+</PredictReveal>
+
+<PromptCostEstimator client:load />
+
+With a local teacher you pay in GPU time instead of money, and the same scaling applies: a prompt six times longer takes several times longer to run.
+
+Some APIs reduce the price of a prompt prefix that repeats across requests. If yours does, put the fixed part first (instructions, types, examples) and the message last. That is the same idea you used in Module 3, where the shared part of the prompt was read once.
+
+## When the prompt is not enough
+
+If the best prompt still leaves the teacher level with the baseline or behind it, you have three options: a larger or stronger teacher, more human labels, or accepting the baseline. Knowing that before a bulk labelling run is the purpose of the check.
+
+<ReviewCard
+  client:load
+  fromModule="Splits and leakage"
+  question="Where may the example messages in a teacher's prompt come from?"
+>
+  The gold training set only. If validation or test messages appear in the prompt, the teacher has seen their answers and every score that follows is too optimistic.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="04-black-box/02-a-better-teacher"
+  id="which-prompt"
+  question="Prompt A scores 71.4% on 308 validation messages and costs 600 tokens a request. Prompt B scores 72.1% and costs 4,000 tokens. Which do you use to label 9,000 messages?"
+  options={[
+    {
+      text: "Prompt B, because it scored higher",
+      feedback: "On 308 messages the margin of error is about 5 points. A 0.7-point gap is far inside it, so B is not shown to be better, and it costs more than six times as much.",
+    },
+    {
+      text: "Prompt A: the difference is inside the margin of error, and A is far cheaper",
+      correct: true,
+      feedback: "When two options cannot be told apart, take the cheaper and simpler one.",
+    },
+    {
+      text: "Neither: score both on the test set to break the tie",
+      feedback: "That would be a decision made from the test set. And a larger test set would not make B worth six times the cost for under a point.",
+    },
+  ]}
+/>

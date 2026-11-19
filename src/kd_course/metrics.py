@@ -150,3 +150,21 @@ def summarize(
         "macro_f1_ci": list(bootstrap_ci(macro, y_true, y_pred, n_resamples, seed=seed)),
         "unanswered": sum(p is None for p in y_pred) / len(y_pred),
     }
+
+
+def teacher_verdict(teacher: float, baseline: float | None, n: int) -> str:
+    """Is this teacher worth learning from? Compares two accuracies measured on n messages.
+
+    Returns a sentence starting with "better", "unclear", "worse" or "unknown".
+    Uses a simple 95% margin for the difference, treating the two scores as independent.
+    """
+    if baseline is None:
+        return "unknown: no baseline validation score was saved, so run Lab 2 again to compare."
+    margin = 1.96 * ((teacher * (1 - teacher) + baseline * (1 - baseline)) / n) ** 0.5
+    difference = teacher - baseline
+    detail = f"teacher {teacher:.1%}, baseline {baseline:.1%}, margin {margin:.1%}"
+    if difference > margin:
+        return f"better: the teacher clearly beats the baseline ({detail})."
+    if difference < -margin:
+        return f"worse: the teacher is clearly behind the baseline ({detail})."
+    return f"unclear: the two cannot be told apart on this many messages ({detail})."

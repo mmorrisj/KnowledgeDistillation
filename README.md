@@ -25,8 +25,8 @@ make install && make build && make serve
 
 ## Status
 
-The site platform and Modules 1 to 3 (Foundations, Baselines and evaluation,
-White-box distillation) are in place. The lab notebooks have not yet been run
-on a real A10G. Modules 4 to 8 and
+The site platform and Modules 1 to 4 (Foundations, Baselines and evaluation,
+White-box distillation, Black-box distillation) are in place. The lab notebooks
+have not yet been run on a real A10G. Modules 5 to 8 and
 instructor tracking are planned; see
 `docs/superpowers/specs/2026-11-19-kd-course-platform-design.md`.
