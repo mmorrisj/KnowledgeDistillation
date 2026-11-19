@@ -110,7 +110,7 @@ def make_splits(
         if len(indices) < need:
             raise ValueError(
                 f"class {label} has {len(indices)} training messages; "
-                f"{need} are needed ({labels_per_class} for training, {val_per_class} for validation)."
+                f"{need} are needed ({labels_per_class} to train, {val_per_class} to validate)."
             )
         rng.shuffle(indices)
         parts = (
