@@ -23,7 +23,6 @@ test("a student can answer a quiz and keep progress across a reload", async ({ p
   await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
   await expect(page.getByText("Completed", { exact: true })).toBeVisible();
   await expect(page.getByText("Correct.")).toBeVisible();
-  await expect(page.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
 });
 
 test("an unknown page shows the styled 404", async ({ page }) => {
@@ -59,3 +58,55 @@ for (const scheme of ["light", "dark"] as const) {
     expect(serious.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(", ")}`)).toEqual([]);
   });
 }
+
+const MODULE_1 = [
+  ["01-why-distill", "Why distill"],
+  ["02-how-transformers-learn", "How transformers learn"],
+  ["03-the-map", "The map"],
+  ["04-three-ideas", "Three ideas kept apart"],
+  ["05-licenses-and-terms", "Licenses and terms"],
+] as const;
+
+for (const [slug, title] of MODULE_1) {
+  for (const scheme of ["light", "dark"] as const) {
+    test(`lesson "${title}" renders with no serious accessibility violations (${scheme})`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto(`/modules/01-foundations/${slug}/`);
+      await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+      await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+      const results = await new AxeBuilder({ page }).analyze();
+      const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
+      expect(serious.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(", ")}`)).toEqual([]);
+    });
+  }
+}
+
+test("the home page starts at Why distill and does not list the component sampler", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: /Start with: Why distill/ })).toBeVisible();
+  await expect(page.getByText("Component sampler")).toHaveCount(0);
+});
+
+test("completing a lesson moves the course progress bar", async ({ page }) => {
+  await page.goto("/modules/01-foundations/01-why-distill/");
+  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await page.getByRole("button", { name: "Mark lesson complete" }).click();
+  await expect(page.getByText(/^1 of \d+ lessons complete$/)).toBeVisible();
+});
+
+test("the cost calculator updates when requests per day changes", async ({ page }) => {
+  await page.goto("/modules/01-foundations/01-why-distill/");
+  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  const results = page.getByRole("status").filter({ hasText: "Cost per day" });
+  await expect(results).toContainText("self-hosted student is cheaper");
+  await page.getByLabel("Requests per day").fill("1000");
+  await expect(results).toContainText("API is cheaper");
+});
+
+test("the training loop explorer shows what distillation changes", async ({ page }) => {
+  await page.goto("/modules/01-foundations/02-how-transformers-learn/");
+  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await page.getByRole("button", { name: "Distillation", exact: true }).click();
+  await expect(page.locator('[data-stage="target"]')).toContainText("Changes here");
+  await expect(page.getByText("Changes here")).toHaveCount(1);
+});

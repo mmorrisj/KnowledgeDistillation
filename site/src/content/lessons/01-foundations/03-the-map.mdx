@@ -1,0 +1,118 @@
+---
+title: The map
+order: 3
+minutes: 10
+objectives:
+  - Tell black-box and white-box distillation apart by what the teacher gives you
+  - Explain why the choice of training signal and the choice of update method are independent
+  - List the five steps every distillation project in this course follows
+---
+
+import ConceptGrid from "../../../components/ConceptGrid.tsx";
+import PipelineDiagram from "../../../components/PipelineDiagram.astro";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+Every project in this course comes down to two choices. This lesson lays them out. Later modules fill in each one.
+
+## Choice one: what does the teacher give you?
+
+**Black-box.** You can only reach the teacher through an API that returns text. You send inputs, collect the teacher's answers, and train the student on those answers as if they were labels. This is how you learn from frontier models you cannot download.
+
+**White-box.** You have the teacher's weights, so you can read its full list of probabilities for every token. The student is trained to match those probabilities, which carry more information than a single answer. This needs an open-weight teacher.
+
+## Choice two: how do you update the student?
+
+**Full fine-tuning.** Every weight in the student is allowed to move. This is simple and gives the best results, but memory use grows with model size.
+
+**LoRA.** The student's weights are frozen and a small set of added matrices is trained. It needs far less GPU memory, so a larger student fits on one card.
+
+## The two choices are independent
+
+Any signal can be paired with any update method. Select a cell to see what the pairing looks like in practice.
+
+<ConceptGrid
+  client:load
+  rows={["Black-box (API teacher, text only)", "White-box (open weights, probabilities)"]}
+  cols={["Full fine-tune", "LoRA / QLoRA"]}
+  cells={[
+    {
+      row: 0, col: 0,
+      title: "Train on teacher-written labels",
+      summary: "Use the API teacher to label or write training examples, then train every weight of a small student on them.",
+      example: "An API model labels 20,000 support messages; fine-tune ModernBERT-base on them",
+      bestFor: "Small students, under about 0.5 billion parameters",
+      taughtIn: "Module 4",
+    },
+    {
+      row: 0, col: 1,
+      title: "Teacher-written labels with LoRA",
+      summary: "The same training data, but only small added matrices are trained. This lets a larger student fit on one GPU.",
+      example: "API-written summaries; a 1.5B student with rank-16 adapters",
+      bestFor: "Students of 1 to 8 billion parameters on a 24 GB card",
+      taughtIn: "Modules 4 and 5",
+    },
+    {
+      row: 1, col: 0,
+      title: "Match the teacher's probabilities",
+      summary: "The student matches the open teacher's probabilities, not just its final answer. Teacher and student must split text into tokens the same way.",
+      example: "Qwen2.5-7B teacher, Qwen2.5-0.5B student",
+      bestFor: "Classification, or small students that can be fully fine-tuned",
+      taughtIn: "Module 3",
+    },
+    {
+      row: 1, col: 1,
+      title: "Match probabilities with LoRA",
+      summary: "The same loss trains adapters on a larger student. The teacher's top probabilities are saved to disk first, so the two models never share the GPU.",
+      example: "Saved top-20 probabilities from a 7B teacher; 1.5B student with adapters",
+      bestFor: "Text generation, where a 0.5B student is too weak",
+      taughtIn: "Modules 3, 5 and 6",
+    },
+  ]}
+/>
+
+## The five steps
+
+Whichever cell you are in, the work follows the same order.
+
+<PipelineDiagram
+  steps={[
+    { label: "Baseline", detail: "Score the teacher, and a student trained on human labels alone." },
+    { label: "Teacher signal", detail: "Collect the teacher's answers or probabilities for your inputs." },
+    { label: "Train", detail: "Train the student with full fine-tuning or LoRA." },
+    { label: "Evaluate", detail: "Compare the student with both baselines on the same test set." },
+    { label: "Serve", detail: "Shrink the student and put it behind an API." },
+  ]}
+/>
+
+The first step is the one most often skipped. Without a student trained on human labels alone, you cannot show that the teacher added anything. Module 2 is about getting those numbers right before any distillation happens.
+
+<ReviewCard
+  client:load
+  fromModule="How transformers learn"
+  question="Which part of the training loop does distillation change, and which part does LoRA change?"
+>
+  Distillation changes the target: the student is pulled toward what a teacher says. LoRA changes the update: only small added matrices move while the original weights stay frozen.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="01-foundations/03-the-map"
+  id="api-teacher"
+  question="Your teacher is a frontier model you can only reach through an API that returns text. Your student has 3 billion parameters and you have one 24 GB GPU. Which cell are you in?"
+  options={[
+    {
+      text: "White-box with full fine-tuning",
+      feedback: "White-box needs the teacher's probabilities, which a text-only API does not give you. Fully fine-tuning 3 billion parameters would also not fit in 24 GB.",
+    },
+    {
+      text: "Black-box with LoRA",
+      correct: true,
+      feedback: "A text-only API means black-box. A 3 billion parameter student is too large to fully fine-tune on 24 GB, so LoRA is the update method.",
+    },
+    {
+      text: "Black-box with full fine-tuning",
+      feedback: "Black-box is right. But fully fine-tuning 3 billion parameters needs more than 24 GB of memory, so the update method has to be LoRA.",
+    },
+  ]}
+/>

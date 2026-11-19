@@ -390,3 +390,40 @@
     transform: translateX(-50%);
   }
 }
+
+/* Probability bars */
+.probs {
+  margin: 0;
+}
+.probs ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.probs li {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) 3.5rem;
+  gap: var(--space-3);
+  align-items: center;
+  font-size: 0.9375rem;
+}
+.probs-track {
+  height: 1rem;
+  background: var(--soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.probs-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+}
+.probs-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}
