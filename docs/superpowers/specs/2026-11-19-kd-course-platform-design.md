@@ -131,12 +131,22 @@ implementations, chosen from `/api/config`:
   per lesson, and quiz results per question. The site shows students a notice
   that progress is visible to the instructor.
 
-  Verification settings (issuer, audience, public key or JWKS address,
-  algorithm, claim names) come from environment variables. Only asymmetric
-  algorithms from an explicit allow-list are accepted.
+  The token arrives in a request header added by the hosting environment.
+  The header name is a setting (`AUTH_HEADER_NAME`); a `Bearer ` prefix is
+  accepted if present.
 
-  Open: how the token reaches the site, which claims carry identity, and how
-  an instructor is told apart from a student.
+  The exact claims and signing keys are not known yet, so all of these are
+  settings filled in at deployment: issuer, audience, public key or JWKS
+  address, algorithm, and the claim names for user ID, name and email. Only
+  asymmetric algorithms from an explicit allow-list are accepted. With
+  tracking on, the server refuses to start if the verification settings are
+  missing, so it can never run in a mode that trusts unverified tokens.
+
+  Instructors are identified by a configurable role or group claim
+  (`INSTRUCTOR_CLAIM`, `INSTRUCTOR_CLAIM_VALUE`), with a fallback allow-list
+  of user IDs (`INSTRUCTOR_IDS`) in case the token carries no role.
+
+  Tests sign their own tokens with a throwaway key pair.
 
 Tables: `students`, `lesson_progress`, `quiz_attempts`.
 
