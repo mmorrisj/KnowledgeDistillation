@@ -1,0 +1,100 @@
+---
+title: Three numbers before you distill
+order: 1
+minutes: 12
+objectives:
+  - Name the three scores every distillation result needs
+  - Work out how much of the gap to the teacher a student closed
+  - Explain why this course trains with only a few human labels per type
+---
+
+import GapClosedCalculator from "../../../components/GapClosedCalculator.tsx";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+A team distills a model and reports: "Our student scores 82%." Is that good?
+
+You cannot tell. If the same small model scores 81% when trained on the team's own labels, the teacher added almost nothing. If it scores 60%, the teacher added a great deal. One number on its own says very little.
+
+## The three numbers
+
+Every distillation result in this course is reported as three scores, measured on the same test set.
+
+- **The teacher.** What the large model scores on the task. This is what you are aiming at.
+- **The baseline.** What the student scores when trained without the teacher, on whatever human labels you have. This is where you start.
+- **The distilled student.** What the student scores after learning from the teacher.
+
+This module produces the first two. Modules 3 and 4 produce the third.
+
+## Gap closed
+
+The useful summary is how much of the distance from the baseline to the teacher the student covered.
+
+> gap closed = (distilled − baseline) ÷ (teacher − baseline)
+
+A student that closes 100% of the gap matches the teacher. One that closes 0% gained nothing from it.
+
+<GapClosedCalculator client:load />
+
+Try making the teacher score lower than the baseline. The calculator says there is no gap to close, and that case matters more than it looks.
+
+## When the teacher is not better
+
+<PredictReveal
+  client:load
+  id="who-wins"
+  prompt="You have 10,000 messages labelled by people. Model A is a small encoder trained on all of them. Model B is a 7 billion parameter model that answers from a prompt, with no training. On 77 fine-grained types, which usually scores higher?"
+  options={["The large prompted model", "The small trained model", "They score about the same"]}
+>
+  Usually the small trained model. Thousands of good labels teach a narrow task very well, and a prompt alone often cannot match that on fine-grained types. You will measure this yourself in the lab, so treat this as a prediction to check, not a fact to memorize.
+</PredictReveal>
+
+This is the most useful thing to know before starting a distillation project: **if you already have plenty of good labels, you may not need a teacher at all.** Distillation pays off when labels are scarce or expensive and unlabelled examples are plentiful. That describes most real projects, where nobody has labelled ten thousand examples.
+
+## The scenario for this course
+
+So the course sets up the realistic case. The data is Banking77: customer messages to a bank, each belonging to one of 77 types. We pretend that people have labelled only a few of them.
+
+<div class="table-wrap">
+
+| Pile | Size | What it is |
+|---|---|---|
+| Gold training set | 616 (8 per type) | The few messages a person has labelled |
+| Gold validation set | 308 (4 per type) | Labelled messages used to make decisions during training |
+| Unlabelled pool | about 9,000 | Messages with no human label. The teacher will label these in later modules |
+| Test set | 1,000 | Held back. Used only to score finished models |
+
+</div>
+
+The baseline is a student trained on the 616 gold messages. The lab also trains one model on every available label, as a **reference**: it shows what you could reach by paying people to label everything, which is the alternative distillation competes with.
+
+<ReviewCard
+  client:load
+  fromModule="Foundations"
+  question="What does distillation change in the training loop?"
+>
+  The target. The student is pulled toward what a teacher model says, in place of human labels or alongside them. The baseline in this module is the same student trained on human labels only, so the difference between the two isolates what the teacher added.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="02-baselines/01-three-numbers"
+  id="what-else"
+  question="A report says: “After distillation our student reaches 88% accuracy.” What do you most need to know before judging it?"
+  options={[
+    {
+      text: "How long the training took",
+      feedback: "Training time matters for cost, but it does not tell you whether the teacher helped.",
+    },
+    {
+      text: "What the same student scores without the teacher, and what the teacher scores",
+      correct: true,
+      feedback: "Those are the other two numbers. With them you can say how much of the gap the student closed. Without them, 88% could be an excellent result or no gain at all.",
+    },
+    {
+      text: "How many parameters the teacher has",
+      feedback: "The teacher's size does not tell you its score on this task, or what the student would have reached alone.",
+    },
+  ]}
+/>

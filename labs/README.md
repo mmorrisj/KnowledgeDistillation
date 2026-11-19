@@ -48,10 +48,26 @@ export KD_COURSE_MODEL_DIR=/data/models
 The labs look for `<folder>/<model name>`, for example
 `/data/models/Qwen2.5-7B-Instruct` and `/data/models/Qwen2.5-0.5B-Instruct`.
 
+## Data
+
+The labs download the Banking77 dataset from Hugging Face on first use. To use
+a local copy, put `train.parquet` and `test.parquet` in a folder named
+`banking77` and point the labs at its parent:
+
+```bash
+export KD_COURSE_DATA_DIR=/data/datasets
+```
+
+## Results
+
+Labs save scores and predictions to a `results` folder beside the notebook.
+Later labs read them, so keep that folder. It is not committed to git.
+
 ## Notebooks
 
 | Module | Notebook | Time |
 |---|---|---|
 | 1. Foundations | `01_foundations/01_setup_check.ipynb` | 5 to 10 min after download |
+| 2. Baselines and evaluation | `02_baselines/01_baselines.ipynb` | 20 to 30 min |
 
 Clear all outputs before committing a notebook.

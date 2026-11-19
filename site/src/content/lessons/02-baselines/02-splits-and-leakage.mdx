@@ -1,0 +1,111 @@
+---
+title: Splits and leakage
+order: 2
+minutes: 12
+objectives:
+  - Say what each of the four piles of data is for
+  - Spot the ways a test set leaks into training, including through the teacher
+  - Use the validation set, not the test set, for every decision
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import SortDrill from "../../../components/SortDrill.tsx";
+
+A score is only worth something if the model has never seen the questions. When information from the test set reaches the model during training, the score goes up and the model does not get better. That is <mark>leakage</mark>, and distillation adds new ways for it to happen.
+
+## Four piles, four jobs
+
+- **Gold training set.** The labelled messages the student learns from.
+- **Gold validation set.** Labelled messages for decisions: how long to train, which prompt wording to use, which settings to keep.
+- **Unlabelled pool.** Messages the teacher will label. This is where the teacher's knowledge enters.
+- **Test set.** Scored once for each finished model. It answers one question: how good is this model on messages it has never influenced?
+
+The rule that keeps the test set honest is simple to state and easy to break: **never make a decision based on a test score.** Every time you look at a test score and then change something, a little of the test set leaks into your choices.
+
+## How leaks happen
+
+**The same message is in training and test.** Public datasets contain repeats and near-repeats. The course code compares messages, ignoring case and spacing, and removes any training message that also appears in the test set.
+
+**Decisions are tuned on the test set.** You try five prompts for the teacher and keep the one with the best test score. That prompt is now fitted to the test set. Choose it on the validation set.
+
+**The teacher sees test messages.** If you show the teacher example messages in its prompt, they must come from the gold training set. If you ask the teacher to write new messages "like these", the samples must not come from the test set.
+
+**The pool's true labels get used.** In this course the pool's real labels are stored so that you can measure the teacher's mistakes later. Training on them would turn the scarce-label scenario into the full-label one.
+
+**The teacher saw the dataset before you did.** A large model may have read a public dataset, test set included, during its own pretraining. You cannot undo this. It is one reason a teacher's score on a public benchmark can flatter it, and why results on your own private data are the ones to trust.
+
+## Leak or fine?
+
+<SortDrill
+  client:load
+  lessonId="02-baselines/02-splits-and-leakage"
+  id="leak"
+  categories={["Leak", "Fine"]}
+  items={[
+    {
+      text: "You train for 3, 5 and 10 epochs and keep the run with the best validation score.",
+      answer: "Fine",
+      why: "This is what the validation set is for.",
+    },
+    {
+      text: "You try three teacher prompts and keep the one that scores best on the test set.",
+      answer: "Leak",
+      why: "The prompt is now chosen to fit the test set. Pick it on the validation set.",
+    },
+    {
+      text: "The teacher labels the unlabelled pool, and the student trains on those labels.",
+      answer: "Fine",
+      why: "The pool is separate from the test set. This is black-box distillation working as intended.",
+    },
+    {
+      text: "You paste twenty test messages into the teacher's prompt as examples of each type.",
+      answer: "Leak",
+      why: "The teacher has now seen test answers, and anything it produces carries them. Use gold training messages as examples.",
+    },
+    {
+      text: "After the final test score disappoints, you change the learning rate and score on the test set again.",
+      answer: "Leak",
+      why: "A decision was made from a test score. Repeat this a few times and the test score stops meaning anything.",
+    },
+    {
+      text: "You remove training messages that are exact copies of test messages.",
+      answer: "Fine",
+      why: "This removes a leak. The course code does it for you when it builds the splits.",
+    },
+  ]}
+/>
+
+## A habit worth keeping
+
+Write the test score down once per finished model, with the date, and move on. If you find yourself scoring on the test set several times a day, you are using it as a validation set.
+
+<ReviewCard
+  client:load
+  fromModule="Three numbers before you distill"
+  question="What are the three scores every distillation result needs?"
+>
+  The teacher's score, the baseline (the student trained without the teacher), and the distilled student's score, all on the same test set.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="02-baselines/02-splits-and-leakage"
+  id="which-set"
+  question="You want to decide whether to show the teacher 2 or 5 example messages per type in its prompt. Which data do you score the two options on?"
+  options={[
+    {
+      text: "The test set, because it is the most trustworthy",
+      feedback: "It stays trustworthy only if you do not use it for choices like this one.",
+    },
+    {
+      text: "The gold validation set",
+      correct: true,
+      feedback: "Choosing between options is a decision, and decisions use the validation set. The example messages themselves come from the gold training set.",
+    },
+    {
+      text: "The unlabelled pool",
+      feedback: "You cannot score on the pool: in the scenario it has no human labels.",
+    },
+  ]}
+/>

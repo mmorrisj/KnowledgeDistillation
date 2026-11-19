@@ -427,3 +427,113 @@
   font-family: var(--font-mono);
   font-size: var(--step--1);
 }
+
+/* Sliders */
+.slider-row {
+  display: grid;
+  grid-template-columns: minmax(0, 16rem) minmax(0, 1fr) 4.5rem;
+  gap: var(--space-3);
+  align-items: center;
+  font-size: 0.9375rem;
+}
+.slider-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.slider-value {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 620px) {
+  .slider-row {
+    grid-template-columns: minmax(0, 1fr) 4.5rem;
+  }
+  .slider-row label {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Gap closed */
+.gap-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-4);
+}
+.gap-fields .field label {
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+.scale {
+  position: relative;
+  height: 3.2rem;
+  margin: var(--space-2) var(--space-4) 0;
+  border-bottom: 2px solid var(--line);
+}
+.scale-mark {
+  position: absolute;
+  bottom: -2px;
+  height: 1.4rem;
+  border-left: 3px solid var(--muted);
+}
+.scale-mark span {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.scale-distilled {
+  border-color: var(--accent);
+  height: 2rem;
+}
+.scale-distilled span {
+  bottom: 2.1rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+.gap-result {
+  font-weight: 500;
+  max-width: var(--measure);
+}
+
+/* Interval explorer */
+.intervals {
+  display: grid;
+  gap: var(--space-2);
+}
+.interval-row {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+  font-weight: 700;
+}
+.interval-track {
+  position: relative;
+  height: 1.5rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.interval-band {
+  position: absolute;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  background: var(--muted);
+  opacity: 0.55;
+  border-radius: 3px;
+}
+.interval-band.own {
+  background: var(--accent);
+}
+.interval-point {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--ink);
+}

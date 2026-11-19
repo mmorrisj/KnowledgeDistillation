@@ -1,0 +1,85 @@
+---
+title: "Lab: baselines"
+order: 5
+minutes: 10
+objectives:
+  - Score a prompted teacher, a baseline student and a full-label reference on one test set
+  - Report each score with its 95% interval
+  - Decide whether the teacher is really better than the baseline
+lab:
+  title: Baselines
+  path: labs/02_baselines/01_baselines.ipynb
+  minutes: 30
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+This lab produces the numbers the rest of the course is measured against. Nothing is distilled yet.
+
+## What the lab does
+
+1. **Builds the four piles** of data from lesson 2.1, the same for every student.
+2. **Scores the teacher.** A 7 billion parameter model reads the list of 77 types and each test message, and replies with a type. It is not trained.
+3. **Trains and scores the baseline.** A small encoder with about 150 million weights learns from the 616 gold messages.
+4. **Trains and scores the reference.** The same encoder learns from every label, to show what labelling everything would buy.
+5. **Compares** the teacher and the baseline with a paired test.
+
+Every score is saved in a `results` folder next to the notebook. Later labs read from it, so keep it.
+
+## Before you look at the results
+
+Write down your prediction: which of the three will score highest, and which lowest? Lesson 2.1 gave you a hint for one of them. Committing to a guess first is what makes the result stick.
+
+## Reading the results
+
+The table at the end shows accuracy with its interval, and macro-F1, for each model. Three things to look for:
+
+- **The order.** If the reference comes out on top, you have seen for yourself that plenty of good labels beat a prompt.
+- **The gap between the teacher and the baseline.** This is the room distillation has to work in. The paired comparison tells you whether it is real.
+- **The teacher's unusable replies.** The teacher's results include the share of replies that named no valid type. A high share means the prompt, not the model, is holding the score down.
+
+If the teacher does not beat the baseline, that is a finding, not a failure. It would mean this teacher, prompted this way, has nothing to teach this student, and the next step would be a better prompt or a stronger teacher. Module 4 covers both.
+
+## If something goes wrong
+
+<div class="table-wrap">
+
+| What you see | Likely cause | What to do |
+|---|---|---|
+| Out of memory while training | The teacher is still on the GPU | Run the cell that deletes the teacher, then run the training cell again |
+| The dataset will not download | The machine cannot reach Hugging Face | Set `KD_COURSE_DATA_DIR` as described in `labs/README.md` |
+| Baseline accuracy near 1% | Training did not learn; with 77 types, 1.3% is chance | Check that the training cell ran to the end and the loss went down |
+| Almost every teacher reply is unusable | The replies are being cut short or are in an unexpected form | Print a few raw replies and compare them with the list of types |
+
+</div>
+
+<ReviewCard
+  client:load
+  fromModule="Is the difference real?"
+  question="Two models were scored on the same test messages. What comparison do you use, and what tells you the difference is real?"
+>
+  A paired comparison, which scores both models on the same resampled messages. The difference is real if its 95% interval does not include zero.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="02-baselines/05-lab-baselines"
+  id="reference-labels"
+  question="The reference model is trained using the pool's true labels. Why is that allowed here but not in later labs?"
+  options={[
+    {
+      text: "Because the reference is only a line to compare against, not a model the scenario could really build",
+      correct: true,
+      feedback: "In the scenario nobody has labelled the pool. The reference shows what labelling it would buy. Any model that claims to work with scarce labels must not train on those labels.",
+    },
+    {
+      text: "Because the pool's true labels are part of the test set",
+      feedback: "The pool is separate from the test set. The issue is that the scenario says the pool has no human labels.",
+    },
+    {
+      text: "It is not allowed; the reference leaks the test set",
+      feedback: "No test message is involved. The reference breaks the scarce-label rule on purpose, and only as a comparison.",
+    },
+  ]}
+/>

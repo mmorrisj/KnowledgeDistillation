@@ -9,3 +9,4 @@ site/dist/
 .superpowers/
 test-results/
 playwright-report/
+results/
