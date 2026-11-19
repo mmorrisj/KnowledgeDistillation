@@ -25,7 +25,8 @@ make install && make build && make serve
 
 ## Status
 
-The site platform and Module 1 (Foundations: five lessons and a setup lab) are
-in place. The setup lab has not yet been run on a real A10G. Modules 2 to 8 and
+The site platform, Module 1 (Foundations) and Module 2 (Baselines and
+evaluation) are in place. The lab notebooks have not yet been run on a real
+A10G. Modules 3 to 8 and
 instructor tracking are planned; see
 `docs/superpowers/specs/2026-11-19-kd-course-platform-design.md`.

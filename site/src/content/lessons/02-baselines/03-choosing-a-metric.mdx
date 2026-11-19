@@ -1,0 +1,92 @@
+---
+title: Choosing a metric
+order: 3
+minutes: 12
+objectives:
+  - Explain when accuracy misleads and what macro-F1 adds
+  - Decide how to score a reply that is not a valid answer
+  - List the measurements other than quality that decide whether a student is good enough
+---
+
+import ImbalanceExplorer from "../../../components/ImbalanceExplorer.tsx";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+A metric turns a thousand predictions into one number. Each metric throws away different information, so the choice decides what you can and cannot see.
+
+## Accuracy
+
+<mark>Accuracy</mark> is the share of predictions that are right. Everyone understands it, and for data where each type is about equally common it is a fair summary.
+
+It fails when some types are rare.
+
+<ImbalanceExplorer client:load />
+
+## Macro-F1
+
+For one type, <mark>F1</mark> combines two questions: of the messages the model called this type, how many really were (precision), and of the messages that really were this type, how many did the model find (recall). F1 is high only when both are high.
+
+<mark>Macro-F1</mark> is the plain average of F1 across all types. Every type counts the same, whether it has five test messages or five hundred. A model that ignores a rare type is punished for it.
+
+In this course you report both. Accuracy is the number people ask for. Macro-F1 tells you whether that number is hiding weak types.
+
+## Per-type scores
+
+With 77 types, an overall score cannot tell you where a model is weak. The per-type F1 scores can. On Banking77 the weak spots are usually pairs of types that mean nearly the same thing, such as a card that has not arrived and a question about when a card will arrive. Those are the places where a teacher's fuller signal can help most, and you will look at them again in Module 3.
+
+## Replies that are not an answer
+
+A trained classifier always picks one of the 77 types. A prompted teacher writes text, and text can be anything.
+
+<PredictReveal
+  client:load
+  id="unparseable"
+  prompt="A teacher answers 1,000 test messages. For 60 of them its reply is not one of the 77 types. How should those 60 be scored?"
+  options={["Leave them out and score the other 940", "Count them as wrong", "Count them as right if the reply is close in meaning"]}
+>
+  Count them as wrong. A system that receives an unusable reply has not got an answer. Leaving them out would raise the teacher's score for failing. Judging "close in meaning" by hand cannot be repeated and tends to favor the model you hope will win. Report the share of unusable replies as a separate number, because it is often easy to fix with a better prompt.
+</PredictReveal>
+
+The course code accepts small differences in a reply, such as capital letters, quotation marks or a trailing full stop. Anything that does not name exactly one type counts as no answer.
+
+## Quality is not the only measure
+
+In the Module 1 lab you measured speed and memory. Those belong in the same table as accuracy:
+
+- **Quality**: accuracy and macro-F1
+- **Speed**: messages per second, or time per message
+- **Memory**: how much GPU the model needs
+- **Cost**: per thousand requests
+
+A student is "good enough" when the quality it gives up is worth what it saves on the other three. That is a judgment for the people who own the product, and your job is to give them all four numbers.
+
+<ReviewCard
+  client:load
+  fromModule="Splits and leakage"
+  question="You tried three prompts and want to keep the best. Which set do you compare them on?"
+>
+  The gold validation set. Using the test set to choose would fit the prompt to the test set and make the final score too optimistic.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="02-baselines/03-choosing-a-metric"
+  id="rare-type"
+  question="A model scores 94% accuracy but only 71% macro-F1. What does that tell you?"
+  options={[
+    {
+      text: "The macro-F1 calculation has a bug, because it should match accuracy",
+      feedback: "The two measure different things and often differ. A gap between them is information, not an error.",
+    },
+    {
+      text: "The model does well on common types and poorly on some rare ones",
+      correct: true,
+      feedback: "Accuracy is dominated by the common types. Macro-F1 gives every type equal weight, so a few badly handled rare types pull it down. Check the per-type scores to find them.",
+    },
+    {
+      text: "The model is overfitting to the training set",
+      feedback: "Overfitting shows up as a gap between training and test scores. This is a gap between two metrics on the same test set.",
+    },
+  ]}
+/>

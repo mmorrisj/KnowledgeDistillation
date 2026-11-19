@@ -128,3 +128,25 @@ def gap_closed(baseline: float, distilled: float, teacher: float) -> float | Non
     if teacher <= baseline:
         return None
     return (distilled - baseline) / (teacher - baseline)
+
+
+def summarize(
+    y_true: Sequence[int],
+    y_pred: Sequence[Prediction],
+    n_classes: int,
+    n_resamples: int = 1000,
+    seed: int = 0,
+) -> dict[str, float | int | list[float]]:
+    """Accuracy and macro-F1 with their 95% intervals, ready to save or print."""
+
+    def macro(truth: Sequence[int], predicted: Sequence[Prediction]) -> float:
+        return macro_f1(truth, predicted, n_classes)
+
+    return {
+        "n": len(y_true),
+        "accuracy": accuracy(y_true, y_pred),
+        "accuracy_ci": list(bootstrap_ci(accuracy, y_true, y_pred, n_resamples, seed=seed)),
+        "macro_f1": macro(y_true, y_pred),
+        "macro_f1_ci": list(bootstrap_ci(macro, y_true, y_pred, n_resamples, seed=seed)),
+        "unanswered": sum(p is None for p in y_pred) / len(y_pred),
+    }

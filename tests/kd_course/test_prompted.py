@@ -70,3 +70,9 @@ def test_classify_with_llm_handles_an_empty_list(tiny_lm):
 
     model, tokenizer = tiny_lm
     assert classify_with_llm(model, tokenizer, [], ["cat", "dog"]) == []
+
+
+def test_parse_label_matches_a_label_that_ends_in_punctuation():
+    labels = ["reverted_card_payment?", "request_refund"]
+    assert parse_label("reverted_card_payment", labels) == 0
+    assert parse_label("reverted_card_payment?", labels) == 0

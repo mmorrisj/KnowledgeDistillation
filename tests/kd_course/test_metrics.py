@@ -109,3 +109,17 @@ def test_gap_closed_can_exceed_one_or_go_negative():
 def test_gap_closed_is_undefined_when_the_teacher_is_no_better_than_the_baseline():
     assert gap_closed(0.80, 0.82, 0.80) is None
     assert gap_closed(0.80, 0.82, 0.75) is None
+
+
+def test_summarize_reports_scores_intervals_and_unanswered_share():
+    from kd_course.metrics import summarize
+
+    y_true = [0, 1, 0, 1] * 50
+    y_pred = [0, 1, 0, None] * 50
+    summary = summarize(y_true, y_pred, n_classes=2, seed=0)
+    assert summary["n"] == 200
+    assert summary["accuracy"] == 0.75
+    assert summary["unanswered"] == 0.25
+    assert summary["accuracy_ci"][0] < 0.75 < summary["accuracy_ci"][1]
+    assert summary["macro_f1_ci"][0] < summary["macro_f1"] < summary["macro_f1_ci"][1]
+    assert all(isinstance(v, float) for v in summary["accuracy_ci"])

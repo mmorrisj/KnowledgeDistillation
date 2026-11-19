@@ -29,9 +29,11 @@ def parse_label(reply: str, label_names: list[str]) -> int | None:
     """
     lowered = reply.strip().lower()
     candidates = {lowered, re.sub(r"\s+", "_", lowered.strip(" \t\n\"'`.,:;!"))}
+    # Compare on letters, digits and underscores only: one Banking77 label ends in "?".
+    names = [re.sub(r"[^a-z0-9_]", "", name.lower()) for name in label_names]
     matched: set[int] = set()
-    for index, name in enumerate(label_names):
-        pattern = rf"(?<![a-z0-9_]){re.escape(name.lower())}(?![a-z0-9_])"
+    for index, name in enumerate(names):
+        pattern = rf"(?<![a-z0-9_]){re.escape(name)}(?![a-z0-9_])"
         if any(re.search(pattern, candidate) for candidate in candidates):
             matched.add(index)
     # "card_arrival" also contains "card": keep only the longest of nested matches.

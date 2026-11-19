@@ -1,0 +1,111 @@
+---
+title: Is the difference real?
+order: 4
+minutes: 14
+objectives:
+  - Explain why a test score is an estimate with a margin of error
+  - Read a confidence interval and say how test-set size changes it
+  - Compare two models on the same test messages and report the result properly
+---
+
+import IntervalExplorer from "../../../components/IntervalExplorer.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+Your baseline scores 70%. After distillation the student scores 73%. Did the teacher help, or did you get a lucky test set?
+
+## A score is an estimate
+
+A test set is a sample of all the messages the model might ever see. Draw a different thousand messages and the score would come out a little different, even though the model has not changed. The score you measured is an estimate of the model's true quality, and it has a margin of error.
+
+A <mark>confidence interval</mark> states that margin. "72.4%, with a 95% interval of 69.6% to 75.1%" means the true value is very likely somewhere in that range.
+
+Two things set how wide the interval is: how many test messages you have, and how close the score is to 50%. Only the first is under your control.
+
+<IntervalExplorer client:load defaults={{ a: 70, b: 73, n: 500 }} />
+
+Move the test-set slider and watch the verdict change. With the starting numbers, a 3-point gap on 500 messages cannot be told apart from luck. The same gap on a few thousand messages can.
+
+A figure worth remembering: on 1,000 test messages, a score near 75% has a margin of about 2.7 points either way. A gain smaller than that needs a closer look before you believe it.
+
+## How the interval is calculated
+
+The course uses the <mark>bootstrap</mark>, which needs no formulas:
+
+1. From your 1,000 test results, draw 1,000 at random, allowing repeats.
+2. Score that resampled set.
+3. Repeat a thousand times.
+4. Take the range that holds the middle 95% of those scores.
+
+It works for any metric, including macro-F1, where there is no simple formula.
+
+## Comparing two models fairly
+
+When two models are scored on the same test messages, there is a sharper comparison than checking whether their intervals overlap. Some messages are hard for every model and some are easy. A <mark>paired</mark> comparison resamples the messages once and scores both models on the same resample, so the difficulty of the sample cancels out. The result is an interval for the difference itself.
+
+If that interval lies entirely above zero, the second model is better. If it includes zero, you cannot say.
+
+<WorkedExample
+  title="Scoring and comparing with the course package"
+  notes={[
+    "One score with its interval. Any metric from the package can be passed in.",
+    "A paired comparison of two models on the same test messages.",
+    "The share of resamples in which the distilled student came out ahead.",
+    "Report the difference with its interval, not just the two scores.",
+  ]}
+>
+
+```python
+from kd_course.metrics import accuracy, bootstrap_ci, paired_bootstrap
+
+score = accuracy(y_true, baseline_pred)
+low, high = bootstrap_ci(accuracy, y_true, baseline_pred)      # 1
+
+result = paired_bootstrap(accuracy, y_true,
+                          baseline_pred, distilled_pred)       # 2
+print(result.probability_b_better)                             # 3
+print(result.difference, result.low, result.high)              # 4
+```
+
+</WorkedExample>
+
+## The other source of luck
+
+Training has randomness too: the order of the examples and the starting values of new layers. Train the same model twice with different random seeds and the scores can differ by a point or more, especially with few training examples. When a decision rests on a small difference, train with three seeds and look at the spread.
+
+## How to report a result
+
+Give the reader what they need to judge it. The numbers in this example are made up; the form is what matters.
+
+> Baseline 61.3% (95% interval 58.2 to 64.3). Distilled 68.9% (66.0 to 71.7). Difference +7.6 points (4.9 to 10.4), paired, on 1,000 test messages.
+
+<ReviewCard
+  client:load
+  fromModule="Choosing a metric"
+  question="A prompted teacher gives a reply that is not one of the allowed types. How is it scored?"
+>
+  As wrong. The share of unusable replies is also reported separately, because a better prompt can often reduce it.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="02-baselines/04-is-the-difference-real"
+  id="small-test-set"
+  question="Model A scores 70.0% and model B scores 71.5%, each on the same 300 test messages. What can you conclude?"
+  options={[
+    {
+      text: "B is better, because 71.5 is larger than 70.0",
+      feedback: "On 300 messages each score has a margin of about 5 points. A 1.5-point gap is well inside that.",
+    },
+    {
+      text: "You cannot tell them apart with this test set",
+      correct: true,
+      feedback: "The margin on 300 messages is far wider than the gap. A paired comparison narrows it somewhat, but to be confident about 1.5 points you would need a much larger test set.",
+    },
+    {
+      text: "A is better, because the gap is too small to be real",
+      feedback: "A small gap is not evidence for A. It means the test cannot separate them.",
+    },
+  ]}
+/>

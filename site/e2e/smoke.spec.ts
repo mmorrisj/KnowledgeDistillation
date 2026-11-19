@@ -59,20 +59,25 @@ for (const scheme of ["light", "dark"] as const) {
   });
 }
 
-const MODULE_1 = [
-  ["01-why-distill", "Why distill"],
-  ["02-how-transformers-learn", "How transformers learn"],
-  ["03-the-map", "The map"],
-  ["04-three-ideas", "Three ideas kept apart"],
-  ["05-licenses-and-terms", "Licenses and terms"],
-  ["06-lab-setup", "Lab: check your setup"],
+const LESSONS = [
+  ["01-foundations/01-why-distill", "Why distill"],
+  ["01-foundations/02-how-transformers-learn", "How transformers learn"],
+  ["01-foundations/03-the-map", "The map"],
+  ["01-foundations/04-three-ideas", "Three ideas kept apart"],
+  ["01-foundations/05-licenses-and-terms", "Licenses and terms"],
+  ["01-foundations/06-lab-setup", "Lab: check your setup"],
+  ["02-baselines/01-three-numbers", "Three numbers before you distill"],
+  ["02-baselines/02-splits-and-leakage", "Splits and leakage"],
+  ["02-baselines/03-choosing-a-metric", "Choosing a metric"],
+  ["02-baselines/04-is-the-difference-real", "Is the difference real?"],
+  ["02-baselines/05-lab-baselines", "Lab: baselines"],
 ] as const;
 
-for (const [slug, title] of MODULE_1) {
+for (const [slug, title] of LESSONS) {
   for (const scheme of ["light", "dark"] as const) {
     test(`lesson "${title}" renders with no serious accessibility violations (${scheme})`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme });
-      await page.goto(`/modules/01-foundations/${slug}/`);
+      await page.goto(`/modules/${slug}/`);
       await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
       await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
       const results = await new AxeBuilder({ page }).analyze();
@@ -110,4 +115,20 @@ test("the training loop explorer shows what distillation changes", async ({ page
   await page.getByRole("button", { name: "Distillation", exact: true }).click();
   await expect(page.locator('[data-stage="target"]')).toContainText("Changes here");
   await expect(page.getByText("Changes here")).toHaveCount(1);
+});
+
+test("the interval explorer changes its verdict as the test set grows", async ({ page }) => {
+  await page.goto("/modules/02-baselines/04-is-the-difference-real/");
+  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  const results = page.getByRole("status").filter({ hasText: "likely between" });
+  await expect(results).toContainText("cannot tell");
+  await page.getByLabel("Number of test messages").fill("20000");
+  await expect(results).toContainText("real difference");
+});
+
+test("the gap-closed calculator reports the share of the gap", async ({ page }) => {
+  await page.goto("/modules/02-baselines/01-three-numbers/");
+  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await page.getByLabel("Distilled student accuracy").fill("75");
+  await expect(page.getByText("closed 100% of the gap")).toBeVisible();
 });
