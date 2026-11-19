@@ -60,8 +60,9 @@ export KD_COURSE_DATA_DIR=/data/datasets
 
 ## Results
 
-Labs save scores and predictions to a `results` folder beside the notebook.
-Later labs read them, so keep that folder. It is not committed to git.
+Labs save scores and predictions to a `results` folder at the top of the repo
+(set `KD_COURSE_RESULTS_DIR` to put it elsewhere). Later labs read them, so keep
+that folder. It is not committed to git.
 
 ## Notebooks
 
@@ -69,5 +70,6 @@ Later labs read them, so keep that folder. It is not committed to git.
 |---|---|---|
 | 1. Foundations | `01_foundations/01_setup_check.ipynb` | 5 to 10 min after download |
 | 2. Baselines and evaluation | `02_baselines/01_baselines.ipynb` | 20 to 30 min |
+| 3. White-box distillation | `03_white_box/01_white_box.ipynb` | about 45 min; needs the Module 2 results |
 
 Clear all outputs before committing a notebook.

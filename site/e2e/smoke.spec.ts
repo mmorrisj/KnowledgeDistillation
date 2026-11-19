@@ -71,6 +71,11 @@ const LESSONS = [
   ["02-baselines/03-choosing-a-metric", "Choosing a metric"],
   ["02-baselines/04-is-the-difference-real", "Is the difference real?"],
   ["02-baselines/05-lab-baselines", "Lab: baselines"],
+  ["03-white-box/01-what-the-teacher-knows", "What the teacher knows"],
+  ["03-white-box/02-reading-probabilities", "Reading a teacher's probabilities"],
+  ["03-white-box/03-temperature", "Temperature"],
+  ["03-white-box/04-the-distillation-loss", "The distillation loss"],
+  ["03-white-box/05-lab-white-box", "Lab: white-box distillation"],
 ] as const;
 
 for (const [slug, title] of LESSONS) {
@@ -131,4 +136,20 @@ test("the gap-closed calculator reports the share of the gap", async ({ page }) 
   await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
   await page.getByLabel("Distilled student accuracy").fill("75");
   await expect(page.getByText("closed 100% of the gap")).toBeVisible();
+});
+
+test("the temperature explorer flattens the distribution", async ({ page }) => {
+  await page.goto("/modules/03-white-box/03-temperature/");
+  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await page.getByRole("slider", { name: "Temperature" }).fill("6");
+  await expect(page.getByRole("status").filter({ hasText: "Temperature 6.0" })).toContainText("flatter");
+});
+
+test("the loss explorer explains alpha at its extremes", async ({ page }) => {
+  await page.goto("/modules/03-white-box/04-the-distillation-loss/");
+  await expect(page.locator("astro-island[ssr]")).toHaveCount(0);
+  await page.getByRole("slider", { name: /Alpha/ }).fill("0");
+  await expect(page.getByRole("status").filter({ hasText: "Teacher term" })).toContainText(
+    "ordinary fine-tuning on the human label",
+  );
 });

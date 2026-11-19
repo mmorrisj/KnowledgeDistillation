@@ -1,0 +1,106 @@
+---
+title: The distillation loss
+order: 4
+minutes: 14
+objectives:
+  - Write the distillation loss as a mix of a teacher term and a label term
+  - Explain what alpha controls and why the teacher term is multiplied by T squared
+  - Recognize the most common bug when implementing it
+---
+
+import KdLossExplorer from "../../../components/KdLossExplorer.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+You have the teacher's probabilities and a temperature. The last piece is the loss: the number the training loop shrinks. In distillation it has two parts.
+
+## Two targets, one loss
+
+- **The teacher term** measures how far the student's softened probabilities are from the teacher's. It uses KL divergence, which is zero when two distributions match and grows as they differ.
+- **The label term** is ordinary cross-entropy against the human label, exactly as in fine-tuning. It applies only to messages a person has labelled.
+
+A weight called <mark>alpha</mark> mixes them:
+
+> loss = alpha × teacher term + (1 − alpha) × label term
+
+<KdLossExplorer client:load />
+
+Move alpha to 0 and you have the Module 2 baseline. Move it to 1 and the human labels are ignored. In between, the student listens to both.
+
+## Why keep the human labels at all
+
+The teacher is not always right. In Module 2 you measured how often it is wrong. Human labels, where you have them, correct the teacher on exactly the messages it gets wrong. In the course scenario the 616 gold messages have both a human label and teacher probabilities, and the roughly 9,000 pool messages have teacher probabilities only. The loss handles both in one batch: pool messages simply contribute nothing to the label term.
+
+## The T² factor
+
+Softening has a side effect. Dividing scores by T makes the gradients of the teacher term smaller, by about a factor of T². Without a correction, raising the temperature would quietly turn down the teacher's influence, and alpha would mean something different at every T.
+
+Multiplying the teacher term by T² cancels this. It keeps the two terms on a comparable scale, so you can tune T and alpha separately.
+
+## The loss in code
+
+<WorkedExample
+  title="The distillation loss"
+  notes={[
+    "The teacher's stored log-probabilities, softened by T.",
+    "The student is softened by the same T. kl_div expects log-probabilities for the student and plain probabilities for the teacher. Swapping them, or passing probabilities for both, is the most common bug: it runs without error and trains badly.",
+    "The T² correction.",
+    "Messages with no human label are marked -100 and skipped by the label term. A batch with no labelled message at all must contribute zero, not an error.",
+    "alpha mixes the two.",
+  ]}
+>
+
+```python
+def kd_loss(student_logits, teacher_log_probs, hard_labels,
+            temperature=2.0, alpha=0.5):
+    soft = torch.softmax(teacher_log_probs / temperature, dim=-1)   # 1
+    student = F.log_softmax(student_logits / temperature, dim=-1)   # 2
+    teacher_term = F.kl_div(student, soft,
+                            reduction="batchmean") * temperature**2 # 3
+
+    if (hard_labels != -100).any():                                 # 4
+        label_term = F.cross_entropy(student_logits, hard_labels,
+                                     ignore_index=-100)
+    else:
+        label_term = student_logits.sum() * 0.0
+    return alpha * teacher_term + (1 - alpha) * label_term          # 5
+```
+
+</WorkedExample>
+
+This is the function the lab uses, from `kd_course.distill`. Everything else in the training loop is the same as the fine-tuning loop from Module 2. Distillation changed one line: the target.
+
+## Reasonable starting values
+
+Start with a temperature of 2 and an alpha of 0.5. Then try a higher temperature and a higher alpha, and compare on the validation set. With few human labels and a decent teacher, a higher alpha often does better, because the teacher has scored far more messages than people have labelled.
+
+<ReviewCard
+  client:load
+  fromModule="Temperature"
+  question="During training, is the student softened by the same temperature as the teacher?"
+>
+  Yes. Both are divided by the same T inside the teacher term. When the finished student makes predictions, it uses a temperature of 1.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="03-white-box/04-the-distillation-loss"
+  id="alpha-zero"
+  question="You train with alpha set to 0. What have you done?"
+  options={[
+    {
+      text: "Pure distillation: the student learns only from the teacher",
+      feedback: "That is alpha 1. Alpha is the weight on the teacher term.",
+    },
+    {
+      text: "Ordinary fine-tuning on the human labels; the teacher is ignored",
+      correct: true,
+      feedback: "With alpha 0 the teacher term has no weight. Only messages with human labels affect the student, which is the Module 2 baseline.",
+    },
+    {
+      text: "Nothing: the loss is always zero",
+      feedback: "The label term still applies, so the loss is the cross-entropy on the labelled messages.",
+    },
+  ]}
+/>

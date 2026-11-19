@@ -67,3 +67,21 @@ def test_loading_scores_for_different_texts_is_an_error(tmp_path):
     path = save_scores(tmp_path / "pool.json", ["a", "b"], [[-0.1], [-0.2]])
     with pytest.raises(ValueError, match="different"):
         load_scores(path, ["a", "c"])
+
+
+def test_top_labels_picks_the_most_likely_class_per_row():
+    from kd_course.label_scoring import top_labels
+
+    assert top_labels([[-0.1, -3.0], [-2.0, -0.2], [-1.0, -1.0]]) == [0, 1, 0]
+
+
+def test_score_or_load_scores_once_and_then_reads_the_file(tiny_lm, tmp_path):
+    from kd_course.label_scoring import score_or_load
+
+    model, tokenizer = tiny_lm
+    path = tmp_path / "scores.json"
+    first = score_or_load(path, model, tokenizer, TEXTS, LABELS)
+    assert path.is_file()
+    # With no model, the second call can only succeed by reading the saved file.
+    second = score_or_load(path, None, None, TEXTS, LABELS)
+    assert second == first

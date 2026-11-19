@@ -55,8 +55,8 @@ Any signal can be paired with any update method. Select a cell to see what the p
     {
       row: 1, col: 0,
       title: "Match the teacher's probabilities",
-      summary: "The student matches the open teacher's probabilities, not just its final answer. Teacher and student must split text into tokens the same way.",
-      example: "Qwen2.5-7B teacher, Qwen2.5-0.5B student",
+      summary: "The student matches the open teacher's probabilities, not just its final answer. When the probabilities are over next tokens, as in text generation, teacher and student must split text into tokens the same way.",
+      example: "Qwen2.5-7B teacher scores each type; a ModernBERT student matches those scores",
       bestFor: "Classification, or small students that can be fully fine-tuned",
       taughtIn: "Module 3",
     },

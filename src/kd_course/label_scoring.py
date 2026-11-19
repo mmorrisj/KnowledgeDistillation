@@ -125,3 +125,28 @@ def load_scores(path: str | Path, texts: list[str]) -> list[list[float]]:
             "Delete the file and score again."
         )
     return saved["scores"]
+
+
+def top_labels(scores: list[list[float]]) -> list[int]:
+    """The most likely class in each row. Ties go to the lower class number."""
+    return [max(range(len(row)), key=row.__getitem__) for row in scores]
+
+
+def score_or_load(
+    path: str | Path,
+    model: Any,
+    tokenizer: Any,
+    texts: list[str],
+    label_names: list[str],
+    progress_every: int = 0,
+) -> list[list[float]]:
+    """Score the texts and save the result, or read it back if it was saved before.
+
+    Scoring is the slow step of white-box distillation, so it should run once.
+    """
+    path = Path(path)
+    if path.is_file():
+        return load_scores(path, texts)
+    scores = score_labels(model, tokenizer, texts, label_names, progress_every=progress_every)
+    save_scores(path, texts, scores)
+    return scores
