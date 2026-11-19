@@ -121,11 +121,22 @@ implementations, chosen from `/api/config`:
 
 - **Tracking off (default).** Progress and quiz answers are saved in the
   browser. No accounts, no database. The server never connects to Postgres.
-- **Tracking on.** Students sign in; progress and quiz attempts are posted to
-  the API and stored in Postgres (SQLAlchemy 2, Alembic migrations). An
-  instructor page shows completion per student and per lesson, and quiz
-  results per question. The site shows students a notice that progress is
-  visible to the instructor.
+- **Tracking on.** There is no login page. Every request carries a JWT
+  issued by the hosting environment that identifies the user. The server
+  verifies the token's signature, expiry, issuer and audience, then reads the
+  user's identity from its claims. An unverified or missing token is
+  rejected; claims are never trusted without verification. Progress and quiz
+  attempts are posted to the API and stored in Postgres (SQLAlchemy 2,
+  Alembic migrations). An instructor page shows completion per student and
+  per lesson, and quiz results per question. The site shows students a notice
+  that progress is visible to the instructor.
+
+  Verification settings (issuer, audience, public key or JWKS address,
+  algorithm, claim names) come from environment variables. Only asymmetric
+  algorithms from an explicit allow-list are accepted.
+
+  Open: how the token reaches the site, which claims carry identity, and how
+  an instructor is told apart from a student.
 
 Tables: `students`, `lesson_progress`, `quiz_attempts`.
 
@@ -156,7 +167,7 @@ Optional: embedding distillation with pgvector search.
 ### First project scope: platform plus Module 1
 
 Platform: Astro shell in the Studio design, core components, FastAPI server,
-browser-stored progress, tracking mode with sign-in and instructor page,
+browser-stored progress, tracking mode with JWT identity and instructor page,
 operator guide, CI.
 
 Module 1 lessons:
@@ -187,10 +198,6 @@ Module 1 lessons:
 - FastAPI serves the built Astro site, so production is one Python process.
 - Interactive components are written in React (largest ecosystem and
   documentation).
-- Sign-in when tracking is on: a student enters a class join code plus name
-  and email and gets a signed session cookie. The instructor page is
-  protected by an instructor password set in the environment. No single
-  sign-on in the first version.
 - Students are told on screen when tracking is on.
 - Running case study: support-request triage, starting from the Banking77
   intent dataset for classification. To be confirmed in the Module 2 design.
