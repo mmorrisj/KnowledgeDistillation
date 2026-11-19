@@ -1,0 +1,98 @@
+---
+title: QLoRA and merging
+order: 4
+minutes: 10
+objectives:
+  - Explain how QLoRA fits a larger model on the same card
+  - Name what QLoRA costs in speed and accuracy
+  - Choose between shipping a merged model and shipping an adapter
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+LoRA brings training memory down to about what it takes to hold the frozen model. For a 7 billion weight model that is still around 15 GB. <mark>QLoRA</mark> shrinks the frozen model itself.
+
+## Fewer bits per weight
+
+A weight is a number, and a number can be stored with more or fewer bits. The labs normally use 16 bits per weight. <mark>Quantization</mark> stores each weight in fewer bits, here 4, by rounding it to one of 16 allowed values chosen to fit how the weights are spread.
+
+QLoRA combines the two ideas:
+
+- The frozen base model is loaded in 4 bits. It takes roughly a third of the memory.
+- LoRA adapters are attached on top and trained at full precision.
+
+The rounding makes the base model slightly less accurate. The adapters are trained with the rounded model in place, so they learn to compensate for part of that.
+
+<PredictReveal
+  client:load
+  id="qlora-cost"
+  prompt="QLoRA lets a 7 billion weight model train in about 5 GB instead of 15 GB. What do you expect it to cost?"
+  options={["Nothing: it is strictly better than LoRA", "Somewhat slower training and a small loss of accuracy", "The adapter becomes as large as the model"]}
+>
+  Somewhat slower training and usually a small loss of accuracy. The 4-bit weights have to be converted back each time they are used, which takes time, and rounding loses a little information. The adapter is the same small size as with ordinary LoRA. QLoRA is the right choice when the model would not otherwise fit, and not otherwise.
+</PredictReveal>
+
+## When to use which
+
+<div class="table-wrap">
+
+| Situation | Use |
+|---|---|
+| The model is small enough to fully fine-tune on your card | Full fine-tuning, or LoRA if you want small adapters |
+| The 16-bit model fits, but full fine-tuning does not | LoRA |
+| Even the 16-bit model leaves too little room to train | QLoRA |
+
+</div>
+
+On the course's A10G, the 0.5B student can be fully fine-tuned, the 1.5B and 3B students call for LoRA, and the 7B model can be trained either with LoRA at a small batch size or more comfortably with QLoRA.
+
+## Merging, and one trap
+
+Lesson 5.2 showed that a trained adapter can be merged into the base weights to give one ordinary model. There is a trap when the base was quantized.
+
+The adapter was trained beside the 4-bit model. If you merge it into the 4-bit weights, the sum has to be rounded again, and accuracy suffers. The reliable order is:
+
+1. Load the base model again at 16 bits.
+2. Merge the adapter into it.
+3. If you want a small model to serve, quantize the merged model as a separate step.
+
+Module 7 covers that last step.
+
+## Shipping: adapter or merged model
+
+- **Ship the adapter** when several tasks share one base model, when you want to update a task by replacing a small file, or when the base model's license requires you to keep it separate.
+- **Ship a merged model** when there is one task and you want the simplest thing to serve. A merged model has no extra layers and runs at the base model's speed.
+
+Either way, keep the adapter file. It is small, and it is the record of what was trained.
+
+<ReviewCard
+  client:load
+  fromModule="Choosing the settings"
+  question="A LoRA run copied from a full fine-tuning script barely learns. What is the likely cause?"
+>
+  The learning rate is too low. LoRA usually needs about ten times the learning rate of full fine-tuning.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="05-lora/04-qlora-and-merging"
+  id="merge-order"
+  question="You trained an adapter with QLoRA and want a single merged model. What is the reliable way to get it?"
+  options={[
+    {
+      text: "Merge the adapter into the 4-bit model you trained with",
+      feedback: "The merged weights would have to be rounded to 4 bits again, which costs accuracy.",
+    },
+    {
+      text: "Load the base model at 16 bits, merge the adapter into that, and quantize afterwards if needed",
+      correct: true,
+      feedback: "Merging at higher precision keeps the adapter's contribution intact. Quantizing is then a separate, deliberate step.",
+    },
+    {
+      text: "Retrain with full fine-tuning; QLoRA adapters cannot be merged",
+      feedback: "They can be merged. The order of the steps is what matters.",
+    },
+  ]}
+/>

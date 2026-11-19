@@ -38,13 +38,17 @@ class LoRALinear(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.base(x) + self.scale * (x @ self.lora_a.T @ self.lora_b.T)
 
+    def merged_weight(self) -> torch.Tensor:
+        """W plus the low-rank update, as one full-size matrix."""
+        return self.base.weight + self.scale * (self.lora_b @ self.lora_a)
+
     def merged(self) -> torch.nn.Linear:
         """An ordinary linear layer with the update folded into its weights."""
         layer = torch.nn.Linear(
             self.base.in_features, self.base.out_features, bias=self.base.bias is not None
         )
         with torch.no_grad():
-            layer.weight.copy_(self.base.weight + self.scale * (self.lora_b @ self.lora_a))
+            layer.weight.copy_(self.merged_weight())
             if self.base.bias is not None:
                 layer.bias.copy_(self.base.bias)
         return layer
@@ -82,3 +86,13 @@ def count_parameters_by_kind(model: Any) -> dict[str, float]:
     total = sum(parameter.numel() for parameter in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     return {"total": total, "trainable": trainable, "trainable_share": trainable / total}
+
+
+def folder_size_mb(path: Any) -> float:
+    """Total size of the files under a folder, in megabytes. Zero if it does not exist."""
+    from pathlib import Path
+
+    folder = Path(path)
+    if not folder.is_dir():
+        return 0.0
+    return sum(f.stat().st_size for f in folder.rglob("*") if f.is_file()) / 1_048_576

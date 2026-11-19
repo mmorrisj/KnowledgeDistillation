@@ -145,3 +145,54 @@ def test_black_box_lab_flow(tiny_encoder_dir, tmp_path):  # noqa: F811
         tmp_path,
     )
     assert "blackbox_plus_synthetic" in load_results(tmp_path)
+
+
+def test_lora_lab_flow(tiny_lm, tmp_path):
+    import copy
+
+    pytest.importorskip("peft")
+    from kd_course.generative import (
+        measure_training,
+        predict_generative,
+        train_generative_classifier,
+    )
+    from kd_course.lora import add_lora, count_parameters_by_kind, folder_size_mb, merge_lora
+
+    labels = ["cat", "dog"]
+    train = LabelledSet(
+        texts=["the cat sat on the mat", "a cat sat", "the dog ran to the floor", "a dog ran"],
+        labels=[0, 0, 1, 1],
+    )
+    base, tokenizer = tiny_lm
+
+    # Run A: full fine-tune
+    full = copy.deepcopy(base)
+    with measure_training(full) as measured:
+        train_generative_classifier(full, tokenizer, train, labels, epochs=1, batch_size=2)
+    full_counts = count_parameters_by_kind(full)
+    assert measured.cost.seconds > 0
+
+    # Run B: LoRA, saved as an adapter, then merged
+    lora_model = add_lora(copy.deepcopy(base), rank=2, alpha=4, target_modules=["c_attn"])
+    train_generative_classifier(
+        lora_model, tokenizer, train, labels, epochs=1, learning_rate=1e-3, batch_size=2
+    )
+    lora_counts = count_parameters_by_kind(lora_model)
+    assert lora_counts["trainable"] < full_counts["trainable"]
+
+    lora_model.save_pretrained(tmp_path / "adapter")
+    full.save_pretrained(tmp_path / "full")
+    assert 0 < folder_size_mb(tmp_path / "adapter") < folder_size_mb(tmp_path / "full")
+
+    before = predict_generative(lora_model, tokenizer, train.texts, labels)
+    merged = merge_lora(lora_model)
+    assert predict_generative(merged, tokenizer, train.texts, labels) == before
+
+    predictions = predict_generative(merged, tokenizer, train.texts, labels)
+    save_result(
+        "generative_lora",
+        summarize(train.labels, predictions, 2, n_resamples=50),
+        predictions,
+        tmp_path,
+    )
+    assert "generative_lora" in load_results(tmp_path)

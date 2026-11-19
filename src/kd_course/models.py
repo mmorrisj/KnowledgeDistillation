@@ -48,3 +48,26 @@ def load_causal_lm(
 
 def count_parameters(model: Any) -> int:
     return sum(parameter.numel() for parameter in model.parameters())
+
+
+def load_causal_lm_4bit(model_id: str, model_dir: str | None = None) -> tuple[Any, Any]:
+    """Load a model with its weights squeezed to 4 bits each, ready for QLoRA.
+
+    Needs a GPU and the bitsandbytes library. The frozen model takes roughly a third
+    of the memory of the 16-bit version; adapters added afterwards train at full precision.
+    """
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+
+    path = resolve_model_path(model_id, model_dir)
+    quantization = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_use_double_quant=True,
+    )
+    tokenizer = AutoTokenizer.from_pretrained(path)
+    model = AutoModelForCausalLM.from_pretrained(
+        path, quantization_config=quantization, device_map={"": 0}
+    )
+    return model, tokenizer

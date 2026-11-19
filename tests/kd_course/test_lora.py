@@ -87,3 +87,18 @@ def test_merge_lora_returns_a_plain_model_with_the_same_outputs(tiny_lm):
 def test_add_lora_rejects_a_rank_below_one(tiny_lm):
     with pytest.raises(ValueError, match="rank"):
         add_lora(tiny_lm[0], rank=0)
+
+
+def test_folder_size_adds_up_every_file(tmp_path):
+    from kd_course.lora import folder_size_mb
+
+    (tmp_path / "a.bin").write_bytes(b"x" * 1_048_576)
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "b.bin").write_bytes(b"x" * 524_288)
+    assert folder_size_mb(tmp_path) == pytest.approx(1.5)
+
+
+def test_folder_size_of_a_missing_folder_is_zero(tmp_path):
+    from kd_course.lora import folder_size_mb
+
+    assert folder_size_mb(tmp_path / "none") == 0.0
