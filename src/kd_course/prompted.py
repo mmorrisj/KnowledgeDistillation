@@ -45,14 +45,6 @@ def parse_label(reply: str, label_names: list[str]) -> int | None:
     return longest.pop() if len(longest) == 1 else None
 
 
-def _as_model_input(tokenizer: Any, prompt: str) -> str:
-    if getattr(tokenizer, "chat_template", None):
-        return tokenizer.apply_chat_template(
-            [{"role": "user", "content": prompt}], tokenize=False, add_generation_prompt=True
-        )
-    return prompt
-
-
 def classify_with_llm(
     model: Any,
     tokenizer: Any,
@@ -62,29 +54,8 @@ def classify_with_llm(
     batch_size: int = 16,
     max_new_tokens: int = 16,
 ) -> list[int | None]:
-    """Classify each text by prompting. A reply that names no single label gives None."""
-    import torch
+    """Classify each text by prompting a local model. An unusable reply gives None."""
+    from kd_course.teachers import LocalTeacher, classify_with_teacher
 
-    pad_id = (
-        tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
-    )
-    original_side = tokenizer.padding_side
-    tokenizer.padding_side = "left"  # generation continues from the right-hand end
-    predictions: list[int | None] = []
-    try:
-        for start in range(0, len(texts), batch_size):
-            prompts = [
-                _as_model_input(tokenizer, build_classification_prompt(text, label_names, examples))
-                for text in texts[start : start + batch_size]
-            ]
-            inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(model.device)
-            with torch.inference_mode():
-                output = model.generate(
-                    **inputs, max_new_tokens=max_new_tokens, do_sample=False, pad_token_id=pad_id
-                )
-            new_tokens = output[:, inputs["input_ids"].shape[1] :]
-            replies = tokenizer.batch_decode(new_tokens, skip_special_tokens=True)
-            predictions.extend(parse_label(reply, label_names) for reply in replies)
-    finally:
-        tokenizer.padding_side = original_side
-    return predictions
+    teacher = LocalTeacher(model, tokenizer, batch_size=batch_size)
+    return classify_with_teacher(teacher, texts, label_names, examples, max_new_tokens)
