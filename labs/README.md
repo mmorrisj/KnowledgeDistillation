@@ -58,6 +58,27 @@ a local copy, put `train.parquet` and `test.parquet` in a folder named
 export KD_COURSE_DATA_DIR=/data/datasets
 ```
 
+## Using an API teacher (optional)
+
+Lab 4 runs with the local teacher by default. To use a teacher behind an
+OpenAI-style chat completions API instead, set these on the GPU machine and
+change the one line in the notebook that creates the teacher:
+
+```bash
+export KD_COURSE_API_BASE=https://your-provider.example/v1
+```
+
+```bash
+export KD_COURSE_API_KEY=your-key
+```
+
+```bash
+export KD_COURSE_API_MODEL=model-name
+```
+
+Check the provider's terms before training on its outputs (lesson 1.5), and
+never commit the key.
+
 ## Results
 
 Labs save scores and predictions to a `results` folder at the top of the repo
@@ -71,5 +92,6 @@ that folder. It is not committed to git.
 | 1. Foundations | `01_foundations/01_setup_check.ipynb` | 5 to 10 min after download |
 | 2. Baselines and evaluation | `02_baselines/01_baselines.ipynb` | 20 to 30 min |
 | 3. White-box distillation | `03_white_box/01_white_box.ipynb` | about 45 min; needs the Module 2 results |
+| 4. Black-box distillation | `04_black_box/01_black_box.ipynb` | about 45 min; needs the Module 2 results |
 
 Clear all outputs before committing a notebook.

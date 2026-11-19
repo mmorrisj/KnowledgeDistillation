@@ -123,3 +123,27 @@ def test_summarize_reports_scores_intervals_and_unanswered_share():
     assert summary["accuracy_ci"][0] < 0.75 < summary["accuracy_ci"][1]
     assert summary["macro_f1_ci"][0] < summary["macro_f1"] < summary["macro_f1_ci"][1]
     assert all(isinstance(v, float) for v in summary["accuracy_ci"])
+
+
+def test_teacher_verdict_better_when_the_gap_is_clear():
+    from kd_course.metrics import teacher_verdict
+
+    assert teacher_verdict(teacher=0.80, baseline=0.60, n=308).startswith("better")
+
+
+def test_teacher_verdict_worse_when_the_teacher_is_clearly_behind():
+    from kd_course.metrics import teacher_verdict
+
+    assert teacher_verdict(teacher=0.45, baseline=0.65, n=308).startswith("worse")
+
+
+def test_teacher_verdict_unclear_when_the_gap_is_inside_the_margin():
+    from kd_course.metrics import teacher_verdict
+
+    assert teacher_verdict(teacher=0.62, baseline=0.60, n=308).startswith("unclear")
+
+
+def test_teacher_verdict_without_a_baseline_says_so():
+    from kd_course.metrics import teacher_verdict
+
+    assert teacher_verdict(teacher=0.62, baseline=None, n=308).startswith("unknown")

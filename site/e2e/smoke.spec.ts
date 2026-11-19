@@ -89,6 +89,11 @@ const LESSONS = [
   ["03-white-box/03-temperature", "Temperature"],
   ["03-white-box/04-the-distillation-loss", "The distillation loss"],
   ["03-white-box/05-lab-white-box", "Lab: white-box distillation"],
+  ["04-black-box/01-learning-from-answers", "Learning from answers alone"],
+  ["04-black-box/02-a-better-teacher", "A better teacher from the same model"],
+  ["04-black-box/03-labelling-the-pool", "Labelling the pool"],
+  ["04-black-box/04-writing-new-examples", "Writing new examples"],
+  ["04-black-box/05-lab-black-box", "Lab: black-box distillation"],
 ] as const;
 
 for (const [slug, title] of LESSONS) {
@@ -165,4 +170,13 @@ test("the loss explorer explains alpha at its extremes", async ({ page }) => {
   await expect(page.getByRole("status").filter({ hasText: "Teacher term" })).toContainText(
     "ordinary fine-tuning on the human label",
   );
+});
+
+test("the prompt cost estimator grows with examples", async ({ page }) => {
+  await page.goto("/modules/04-black-box/02-a-better-teacher/");
+  await hydrated(page);
+  const result = page.getByRole("status").filter({ hasText: "Each request sends" });
+  await expect(result).toContainText("599 tokens");
+  await page.getByRole("slider", { name: "Examples per type in the prompt" }).fill("2");
+  await expect(result).toContainText("3,987 tokens");
 });

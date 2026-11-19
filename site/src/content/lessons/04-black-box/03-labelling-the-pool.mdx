@@ -1,0 +1,108 @@
+---
+title: Labelling the pool
+order: 3
+minutes: 12
+objectives:
+  - Turn a teacher's replies into a training set and handle unusable ones
+  - Explain how mistakes in teacher labels affect the student
+  - Check label quality when you have no true labels to compare against
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+With a prompt chosen, the teacher goes through the unlabelled pool and answers each message. Those answers become the student's training labels. This lesson is about what can go wrong between the two.
+
+## Unusable replies
+
+Some replies will not name a valid type. In Module 2 those counted as wrong when scoring the teacher. When building a training set the rule is different: **drop them.** There is no label to train on, and guessing one would add noise. Record how many were dropped. If it is more than a few percent, go back and fix the prompt's format instructions.
+
+## Teacher labels contain mistakes
+
+Suppose the teacher is right 80% of the time. Then about one training label in five is wrong.
+
+<PredictReveal
+  client:load
+  id="noisy-labels"
+  prompt="A student trains on 9,000 messages labelled by a teacher that is right 80% of the time. What is the most the student can score?"
+  options={["Exactly 80%: a student cannot beat its teacher", "Well below 80%, because the errors pile up", "It can end up a little above 80%, though you should not count on it"]}
+>
+  It can end up a little above the teacher. When the teacher's mistakes are scattered, the student sees many correct examples of each pattern and a few contradicting ones, and the correct pattern wins. The 616 human labels help too. But a teacher that makes the same mistake every time, such as always confusing two types, passes that mistake straight on. Scattered errors get averaged away; consistent errors get copied.
+</PredictReveal>
+
+This is why the teacher's per-type scores matter more than its overall accuracy. A teacher at 80% whose errors are spread evenly is a better teacher than one at 85% that never gets three particular types right.
+
+## Checking quality without true labels
+
+In a real project the pool has no true labels, so you cannot measure the teacher's accuracy on it directly. Three checks still work:
+
+- **Read a sample.** Pull 50 labelled messages at random and check them yourself. It takes ten minutes and catches most systematic problems.
+- **Count the types.** If the teacher gives one type to a fifth of the pool and another to almost nothing, find out why. Real imbalance is possible, and so is a prompt problem.
+- **Ask twice.** Label a sample with two different prompts, or two different sets of examples. Messages where the answers disagree are where the teacher is unsure. A high rate of disagreement is a warning.
+
+In this course the pool's true labels are stored, so the lab can show you the teacher's real accuracy on the pool after the fact. Treat that as the answer key at the back of the book: useful for learning, not available at work.
+
+## How much to label
+
+More labelled messages help, with diminishing returns: the first thousand matter far more than the ninth. Since cost grows in a straight line with the number of messages, it is worth labelling a part of the pool, training, and looking at the result before paying for the rest. The lab labels 3,000 messages by default so that it finishes in reasonable time.
+
+## The same code for any teacher
+
+<WorkedExample
+  title="Labelling with a local or an API teacher"
+  notes={[
+    "A local model, used only through its text replies.",
+    "Or an API teacher, read from three environment variables. Check its terms first (lesson 1.5).",
+    "Everything after this line is the same for both.",
+    "Replies that name no valid type are dropped, and counted.",
+    "An API teacher keeps a count of tokens, so you can see what the run cost at your prices.",
+  ]}
+>
+
+```python
+from kd_course.synthetic import labelled_from_predictions
+from kd_course.teachers import ApiTeacher, LocalTeacher, classify_with_teacher
+
+teacher = LocalTeacher(model, tokenizer)                       # 1
+# teacher = ApiTeacher.from_env()                              # 2
+
+answers = classify_with_teacher(teacher, pool_texts,
+                                LABELS, examples)              # 3
+labelled, dropped = labelled_from_predictions(pool_texts,
+                                              answers)         # 4
+# print(teacher.usage, teacher.cost(3.0, 15.0))                # 5
+```
+
+</WorkedExample>
+
+<ReviewCard
+  client:load
+  fromModule="Choosing a metric"
+  question="When scoring a teacher, how is an unusable reply counted? Is the rule the same when building a training set?"
+>
+  When scoring, it counts as wrong. When building a training set, it is dropped, because there is no label to learn from. Both rules avoid rewarding the teacher for failing.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="04-black-box/03-labelling-the-pool"
+  id="which-teacher"
+  question="Teacher A is 85% accurate overall but labels every message of two particular types wrongly. Teacher B is 80% accurate with its mistakes spread evenly. Which is likely to produce the better student?"
+  options={[
+    {
+      text: "Teacher A, because 85% is higher than 80%",
+      feedback: "The student will learn A's two blind spots exactly, because nothing in the training data contradicts them.",
+    },
+    {
+      text: "Teacher B, because scattered mistakes are outvoted while consistent ones are copied",
+      correct: true,
+      feedback: "For every pattern B gets wrong sometimes, the student also sees it done right more often. A's two types are never right, so the student has nothing to learn the correct answer from.",
+    },
+    {
+      text: "Neither can train a useful student",
+      feedback: "Both can. Students routinely learn well from teachers with accuracy in this range.",
+    },
+  ]}
+/>

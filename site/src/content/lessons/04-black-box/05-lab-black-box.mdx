@@ -1,0 +1,106 @@
+---
+title: "Lab: black-box distillation"
+order: 5
+minutes: 10
+objectives:
+  - Decide on validation data whether a teacher is worth learning from
+  - Build a training set from a text-only teacher by labelling and by generating
+  - Measure what each source of data adds, on the real test set
+lab:
+  title: Black-box distillation
+  path: labs/04_black_box/01_black_box.ipynb
+  minutes: 45
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+In this lab the teacher is used only through its text replies, exactly as an API teacher would be. It needs the results from the Module 2 lab.
+
+## What the lab does
+
+1. **Tries two prompts on the validation set**: the plain prompt, and one with an example message for each type.
+2. **Prints a verdict**: is the best prompt's teacher clearly better than the baseline, clearly worse, or too close to call?
+3. **Labels part of the pool** with the better prompt, and drops unusable replies.
+4. **Writes new messages** for every type, removes repeats and anything matching test or validation messages, and applies the round-trip check.
+5. **Trains two students**: one on the gold labels plus the teacher-labelled pool, one with the generated messages added.
+6. **Scores everything on the real test set** and reports the gap closed.
+
+## The verdict, and what to do with it
+
+The lab continues whichever verdict you get, so that you see the result of training on this teacher's labels either way. What you should take from it differs.
+
+<div class="table-wrap">
+
+| Verdict | What to expect from the students | What you would do on a real project |
+|---|---|---|
+| Better | A clear gain over the baseline | Proceed. Consider labelling more of the pool |
+| Unclear | A small gain, no gain, or a small loss | Improve the prompt further before a large labelling run |
+| Worse | Possibly a student below the baseline | Stop. Use a stronger teacher or label more by hand |
+
+</div>
+
+If your verdict is "worse" and the student still beats the baseline, look at lesson 4.3 again: scattered teacher mistakes get outvoted, and the gold labels help. If your verdict is "better" and the student gains little, look at how many replies were dropped and at the teacher's accuracy on the pool, which the lab prints.
+
+## Before you look at the results
+
+Predict two things and write them down:
+
+- Which prompt will do better on validation, and by how much?
+- Will adding generated messages help, hurt or make no difference?
+
+## Reading the results
+
+- **Prompt comparison.** With 308 validation messages the margin is about 5 points. Check whether the winner is really ahead.
+- **Dropped replies.** A high count points at the prompt's format instructions.
+- **Teacher accuracy on the pool.** Shown using the stored true labels. On a real project you would estimate this by reading a sample.
+- **Generated messages kept.** Compare how many were written with how many survived the two filters.
+- **The two students.** The paired comparison tells you whether generated messages changed anything. No effect is a common and legitimate result when thousands of real messages are already in the training set.
+- **Against Module 3.** If you ran that lab, its results are in the same table. Compare the student trained on top answers there with the one here: the difference is the better prompt.
+
+## Using a real API teacher
+
+The lab uses the local teacher so that it runs without an account or a bill. To use an API teacher, set `KD_COURSE_API_BASE`, `KD_COURSE_API_KEY` and `KD_COURSE_API_MODEL` on the GPU machine, and change the one line in the notebook that creates the teacher. Before you do, go through the checklist in lesson 1.5, and use the estimator in lesson 4.2 to see what the run will cost.
+
+## If something goes wrong
+
+<div class="table-wrap">
+
+| What you see | Likely cause | What to do |
+|---|---|---|
+| "No result named baseline_gold_616" | The Module 2 lab has not been run here | Run the Module 2 lab first |
+| Verdict "unknown" | The saved baseline has no validation score | Run the Module 2 lab again; it now saves one |
+| Out of memory when the example prompt runs | The longer prompt needs more memory per batch | Lower `BATCH_SIZE` at the top of the notebook |
+| Almost no generated messages survive | The teacher's replies are not in list form | Print one raw reply and compare it with the numbered-list format the code expects |
+
+</div>
+
+<ReviewCard
+  client:load
+  fromModule="Writing new examples"
+  question="What does the round-trip check do?"
+>
+  It asks the teacher, in a fresh request, to classify each message it wrote, and keeps the message only if the answer matches the type that was requested.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="04-black-box/05-lab-black-box"
+  id="verdict-worse"
+  question="The verdict is “worse”: on validation the teacher is clearly behind the baseline. On a real project, what is the right next step?"
+  options={[
+    {
+      text: "Label the whole pool anyway, since more data always helps",
+      feedback: "More data helps when the labels are good. Here most of the extra labels would teach the student this teacher's mistakes, and you would pay for every one.",
+    },
+    {
+      text: "Stop and get a better teacher signal first: a better prompt, a stronger model, or more human labels",
+      correct: true,
+      feedback: "The check exists to stop you spending on a labelling run that is unlikely to pay off.",
+    },
+    {
+      text: "Switch to scoring on the validation set so the comparison looks better",
+      feedback: "Changing how you score does not change how good the model is.",
+    },
+  ]}
+/>

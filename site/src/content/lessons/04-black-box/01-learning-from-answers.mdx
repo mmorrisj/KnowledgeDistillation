@@ -1,0 +1,107 @@
+---
+title: Learning from answers alone
+order: 1
+minutes: 10
+objectives:
+  - Describe what a text-only teacher can and cannot give a student
+  - Decide whether a teacher is worth learning from before spending anything on it
+  - Name the two ways a text-only teacher produces training data
+---
+
+import PipelineDiagram from "../../../components/PipelineDiagram.astro";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+The strongest models are usually the ones you cannot download. You reach them through an API, you send text, and you get text back. No probabilities, no weights. <mark>Black-box distillation</mark> is learning from a teacher like that.
+
+## You have already done a version of this
+
+In the Module 3 lab, one student trained on the teacher's top answers, treated as labels. That student used nothing a text API could not provide. It was black-box distillation with a teacher that happened to be local.
+
+This module does it properly: improving the teacher's answers first, checking their quality, counting the cost, and using the teacher to write new examples as well as label existing ones.
+
+## What a text-only teacher gives you
+
+<div class="table-wrap">
+
+| | White-box (Module 3) | Black-box (this module) |
+|---|---|---|
+| What you see | A probability for every type | One answer |
+| Which teachers | Open-weight models you run | Any model, including API-only ones |
+| What it costs | GPU time | A fee per token, or GPU time if local |
+| Unusable replies | Not possible | Possible, and must be handled |
+| Extra thing it can do | | Write new training examples |
+
+</div>
+
+Two things come out of the right-hand column. You lose the teacher's view of the alternatives. You gain access to stronger teachers, and a teacher that can write.
+
+## First question: is this teacher worth learning from?
+
+In Module 2 you learned that a prompted teacher does not always beat a small model trained on human labels. Before you pay a teacher to label thousands of messages, check which case you are in. It takes a few hundred validation messages and a few minutes.
+
+<PredictReveal
+  client:load
+  id="worse-teacher"
+  prompt="On your validation set the teacher scores 58% and your baseline student scores 63%. You have 9,000 unlabelled messages. What should you do?"
+  options={["Have the teacher label all 9,000 and train on them", "Improve the teacher first, then check again", "Give up on distillation for this task"]}
+>
+  Improve the teacher first. Training on its labels as they stand would mostly teach the student the teacher's mistakes. But one prompt is not the model's best effort, and the cheapest fixes are in the next lesson. Giving up comes only after those have been tried.
+</PredictReveal>
+
+The check has three outcomes, and each one leads somewhere different.
+
+<div class="table-wrap">
+
+| On the validation set | What it means | What to do |
+|---|---|---|
+| Teacher clearly ahead of the baseline | The teacher knows things your labels did not teach | Go ahead and distill |
+| Too close to call | The teacher may add little | Improve the teacher (lesson 4.2), then check again |
+| Teacher clearly behind | Its labels would hurt more than help | Improve the teacher, or use a stronger one. If neither works, label more data by hand instead |
+
+</div>
+
+"Clearly" has the meaning it had in lesson 2.4: the gap is larger than the margin of error for that many messages. The lab works this out for you and prints which case you are in.
+
+## The plan for this module
+
+<PipelineDiagram
+  steps={[
+    { label: "Check the teacher", detail: "Compare it with the baseline on validation messages." },
+    { label: "Improve its prompt", detail: "Add examples and tighten the format, choosing on validation." },
+    { label: "Label the pool", detail: "Run the teacher over unlabelled messages and drop unusable replies." },
+    { label: "Write new examples", detail: "Optional: have the teacher write messages for each type, then filter them." },
+    { label: "Train and score", detail: "Train the student and score it once on the test set." },
+  ]}
+/>
+
+<ReviewCard
+  client:load
+  fromModule="White-box distillation"
+  question="What does a student trained on a teacher's probabilities see that one trained on its top answers does not?"
+>
+  How the teacher ranks the other types: which wrong answers are nearly right and which are far off. A text-only teacher cannot give you that.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="04-black-box/01-learning-from-answers"
+  id="why-black-box"
+  question="Your organization can use a very strong model, but only through an API. Which statement is true?"
+  options={[
+    {
+      text: "You cannot distill from it, because distillation needs probabilities",
+      feedback: "White-box distillation needs probabilities. Black-box distillation trains on the teacher's answers, which an API gives you.",
+    },
+    {
+      text: "You can distill from its answers, after checking its terms and its quality on your task",
+      correct: true,
+      feedback: "Both checks come first: the terms decide whether you may, and the validation comparison decides whether it is worth doing.",
+    },
+    {
+      text: "A stronger model always makes a better teacher for your task, so no check is needed",
+      feedback: "Strength in general is not the same as quality on your task with your prompt. Module 2 showed a prompted teacher can lose to a small trained model.",
+    },
+  ]}
+/>
