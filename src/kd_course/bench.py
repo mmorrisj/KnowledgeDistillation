@@ -95,3 +95,30 @@ def compare(teacher: BenchResult, student: BenchResult) -> dict[str, float]:
     if teacher.peak_memory_gb is not None and student.peak_memory_gb is not None:
         ratios["memory_ratio"] = teacher.peak_memory_gb / student.peak_memory_gb
     return ratios
+
+
+def format_comparison(teacher: BenchResult, student: BenchResult) -> str:
+    """A small table of both results, followed by one sentence with the ratios."""
+
+    def memory(result: BenchResult) -> str:
+        return "n/a" if result.peak_memory_gb is None else f"{result.peak_memory_gb:.1f}"
+
+    rows = [
+        ("", "Teacher", "Student"),
+        ("Weights (billions)", f"{teacher.n_params / 1e9:.2f}", f"{student.n_params / 1e9:.2f}"),
+        (
+            "Tokens per second",
+            f"{teacher.tokens_per_second:.1f}",
+            f"{student.tokens_per_second:.1f}",
+        ),
+        ("Peak GPU memory (GB)", memory(teacher), memory(student)),
+    ]
+    table = "\n".join(f"{label:<22}{a:>12}{b:>12}" for label, a, b in rows)
+
+    ratios = compare(teacher, student)
+    sentence = (
+        f"The student is {ratios['size_ratio']:.0f}x smaller and {ratios['speedup']:.1f}x faster"
+    )
+    if "memory_ratio" in ratios:
+        sentence += f", and uses {ratios['memory_ratio']:.0f}x less GPU memory"
+    return f"{table}\n\n{sentence}."

@@ -58,3 +58,41 @@ def test_compare_omits_memory_when_unknown():
         n_params=5, tokens_per_second=100, latency_p50_s=0.2, peak_memory_gb=1, new_tokens=1
     )
     assert "memory_ratio" not in compare(teacher, student)
+
+
+def test_format_comparison_shows_both_models_and_the_ratios():
+    from kd_course.bench import format_comparison
+
+    teacher = BenchResult(
+        n_params=7_600_000_000,
+        tokens_per_second=30,
+        latency_p50_s=2,
+        peak_memory_gb=15.2,
+        new_tokens=1,
+    )
+    student = BenchResult(
+        n_params=500_000_000,
+        tokens_per_second=120,
+        latency_p50_s=0.4,
+        peak_memory_gb=1.0,
+        new_tokens=1,
+    )
+    text = format_comparison(teacher, student)
+    assert "7.60" in text and "0.50" in text
+    assert "15x smaller" in text
+    assert "4.0x faster" in text
+    assert "15x less GPU memory" in text
+
+
+def test_format_comparison_without_memory_figures():
+    from kd_course.bench import format_comparison
+
+    teacher = BenchResult(
+        n_params=70, tokens_per_second=10, latency_p50_s=2, peak_memory_gb=None, new_tokens=1
+    )
+    student = BenchResult(
+        n_params=5, tokens_per_second=100, latency_p50_s=0.2, peak_memory_gb=None, new_tokens=1
+    )
+    text = format_comparison(teacher, student)
+    assert "n/a" in text
+    assert "GPU memory." not in text

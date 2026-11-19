@@ -99,7 +99,7 @@ export default function TrainingLoopExplorer() {
 
   return (
     <section className="card loop" aria-label="Training loop explorer">
-      <p className="card-kicker">One loop, five ways to use it</p>
+      <p className="card-kicker">Training loop explorer</p>
       <div className="choices" role="group" aria-label="Training method">
         {MODES.map((m, index) => (
           <button

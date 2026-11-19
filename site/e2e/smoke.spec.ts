@@ -65,6 +65,7 @@ const MODULE_1 = [
   ["03-the-map", "The map"],
   ["04-three-ideas", "Three ideas kept apart"],
   ["05-licenses-and-terms", "Licenses and terms"],
+  ["06-lab-setup", "Lab: check your setup"],
 ] as const;
 
 for (const [slug, title] of MODULE_1) {

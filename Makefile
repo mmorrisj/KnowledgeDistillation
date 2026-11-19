@@ -1,8 +1,11 @@
-.PHONY: install build serve dev test e2e lint
+.PHONY: install install-labs build serve dev test e2e lint
 
 install: ## Install Python and site dependencies
 	uv sync
 	cd site && npm ci
+
+install-labs: ## On the GPU machine: install PyTorch and the lab software
+	uv sync --group labs
 
 build: ## Build the lesson site into site/dist
 	cd site && npm run build

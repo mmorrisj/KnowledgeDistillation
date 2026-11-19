@@ -18,11 +18,14 @@ make install && make build && make serve
 |---|---|
 | `site/` | Lesson site (Astro, MDX, React components) |
 | `server/` | FastAPI app that serves the built site and the API |
+| `src/kd_course/` | Python package shared by the labs |
+| `labs/` | Lab notebooks, run on a GPU machine ([setup](labs/README.md)) |
 | `tests/` | Python tests |
 | `docs/` | Operator guide, design and plans |
 
 ## Status
 
-The site platform and a component sampler lesson are in place. Course modules,
-labs and instructor tracking are planned next; see
+The site platform and Module 1 (Foundations: five lessons and a setup lab) are
+in place. The setup lab has not yet been run on a real A10G. Modules 2 to 8 and
+instructor tracking are planned; see
 `docs/superpowers/specs/2026-11-19-kd-course-platform-design.md`.

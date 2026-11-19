@@ -76,6 +76,10 @@ The serving machine does not need Node. Build on any machine with Node, copy
 
 ## Labs
 
+Lab setup is described in `labs/README.md`. In short: on the GPU machine run
+`make install-labs`, which installs PyTorch and the lab software. The site host
+never needs these.
+
 Labs are Jupyter notebooks in `labs/`. Students run them on a GPU machine they
 reach over SSH. The site only links to them: on the Settings page a student can
 save the address they use to open Jupyter (for example `http://localhost:8888`
