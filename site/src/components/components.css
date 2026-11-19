@@ -201,3 +201,81 @@
   color: var(--bad);
   font-size: 0.9375rem;
 }
+
+/* Cost calculator */
+.calc-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-4);
+}
+.calc-group {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+.calc-group legend {
+  font-weight: 700;
+  font-family: var(--font-display);
+  padding: 0 var(--space-2);
+}
+.calc-group .field label {
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+.calc-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.calc-input input {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.calc-results {
+  display: grid;
+  gap: var(--space-3);
+  border-top: 1px dashed var(--line);
+  padding-top: var(--space-4);
+}
+.calc-row {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr) 6.5rem;
+  gap: var(--space-3);
+  align-items: center;
+}
+.calc-row strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.calc-bar {
+  height: 1rem;
+  background: var(--soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.calc-bar div {
+  height: 100%;
+  background: var(--muted);
+  border-radius: 4px;
+  transition: width 0.25s ease;
+}
+.calc-bar div.own {
+  background: var(--accent);
+}
+@media (max-width: 560px) {
+  .calc-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .calc-bar {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
