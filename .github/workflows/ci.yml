@@ -27,7 +27,7 @@ jobs:
       - run: uv sync
       # CPU build of PyTorch: the package tests use a tiny model and need no GPU.
       - run: uv pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - run: uv pip install "transformers>=4.56" accelerate datasets
+      - run: uv pip install "transformers>=4.56" accelerate datasets peft
       - run: uv run --no-sync pytest -q tests/kd_course tests/labs -rs
       - name: Fail if any lab test was skipped
         run: "! uv run --no-sync pytest -q tests/kd_course tests/labs -rs | grep -q SKIPPED"
