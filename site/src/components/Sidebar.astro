@@ -1,0 +1,41 @@
+---
+import type { NavModule } from "../lib/nav";
+
+interface Props {
+  nav: NavModule[];
+  currentId?: string;
+}
+const { nav, currentId } = Astro.props;
+const currentModule = currentId?.split("/")[0];
+---
+
+<nav class="sidebar" aria-label="Course">
+  <slot name="progress" />
+  <ol class="sidebar-modules">
+    {
+      nav.map((module) => (
+        <li class:list={["sidebar-module", { current: module.slug === currentModule }]}>
+          <div class="sidebar-module-title">
+            <span>{module.title}</span>
+            {module.status === "planned" && <span class="tag">Coming soon</span>}
+          </div>
+          {module.lessons.length > 0 && (
+            <ol class="sidebar-lessons">
+              {module.lessons.map((lesson) => (
+                <li>
+                  <a
+                    href={lesson.href}
+                    data-lesson-id={lesson.id}
+                    aria-current={lesson.id === currentId ? "page" : undefined}
+                  >
+                    {lesson.title}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</nav>

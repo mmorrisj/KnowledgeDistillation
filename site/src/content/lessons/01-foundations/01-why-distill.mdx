@@ -1,0 +1,86 @@
+---
+title: Why distill
+order: 1
+minutes: 12
+objectives:
+  - Explain what a distilled model gives you that calling a large model does not
+  - Estimate the volume at which running your own small model costs less than an API
+  - Name situations where distilling is not worth the effort
+---
+
+import CostCalculator from "../../../components/CostCalculator.tsx";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+
+The largest language models are very good at a very wide range of tasks. That range is what you pay for. If your product needs one narrow task done well, millions of times, most of what the large model can do is unused on every request.
+
+**Knowledge distillation** is the practice of using a large model, the <mark>teacher</mark>, to train a much smaller model, the <mark>student</mark>, to do one task nearly as well. This course teaches you to do that end to end.
+
+## A running example
+
+Throughout the course we return to one task: a bank receives customer messages and needs each one sorted into one of 77 types, such as "card arrival", "lost or stolen card" or "exchange rate". A frontier model does this well with a good prompt. The question is whether it should.
+
+## Three costs of relying on a large model
+
+**Money.** An API charges for every token in and every token out, on every request, forever. The cost grows in a straight line with your traffic.
+
+**Speed.** A large model takes longer to answer. A small model on your own GPU can answer a classification request in a few milliseconds and can serve many requests at once.
+
+**Control.** With an API, your data leaves your systems, the provider sets the rate limits, and the model behind the name can change or be retired. A model you hold the weights for does the same thing tomorrow as it did today.
+
+## Where the costs cross
+
+<PredictReveal
+  client:load
+  id="break-even"
+  prompt="A team pays an API about $4.65 for every thousand requests. One GPU machine left on all day costs about $39. At roughly what daily volume do the two cost the same?"
+  options={["About 800 requests a day", "About 8,000 requests a day", "About 80,000 requests a day"]}
+>
+  About 8,400 requests a day. Below that, the API is cheaper because the GPU sits mostly idle. Above it, every extra request on the API costs more, while the GPU costs the same until it runs out of capacity. Try your own numbers below.
+</PredictReveal>
+
+<CostCalculator client:load />
+
+## What distilling costs you
+
+The calculator leaves out the one-time work, and that work is real:
+
+- **Collecting the teacher's outputs.** You pay the teacher once for every training example.
+- **Training and evaluating the student.** GPU hours, plus your time.
+- **Some quality.** A student usually scores a little below its teacher. You have to measure how much, and decide whether it is acceptable.
+- **Upkeep.** If the task changes, the student has to be retrained.
+
+## When not to distill
+
+Distilling is the wrong tool when:
+
+- **Volume is low.** At a few hundred requests a day, the API bill is smaller than the cost of your time.
+- **The task is still changing.** Every change to the instructions means retraining. Settle the task with prompts first.
+- **The task is broad.** Open-ended reasoning across many subjects is exactly what large models are for. Distillation works on narrow, repeatable tasks.
+- **You cannot measure quality.** Without a test set you trust, you cannot tell whether the student is good enough.
+
+## What you will build
+
+By the end of the course you will have taken one task through the whole process: measure a baseline, collect a teacher's knowledge, train a student, evaluate it against the teacher, and serve it.
+
+<Quiz
+  client:load
+  lessonId="01-foundations/01-why-distill"
+  id="when-to-distill"
+  question="Which of these is the best candidate for distillation?"
+  options={[
+    {
+      text: "A research assistant that answers questions on any subject",
+      feedback: "This task is broad. A small model cannot hold the range of knowledge it needs, which is the thing large models are good at.",
+    },
+    {
+      text: "Sorting two million support messages a day into fixed categories",
+      correct: true,
+      feedback: "The task is narrow, repeatable, high volume and easy to score against labels. That combination is where a small student pays off.",
+    },
+    {
+      text: "A prototype feature whose instructions change every week",
+      feedback: "Each change would mean retraining the student. Keep using prompts until the task settles.",
+    },
+  ]}
+/>

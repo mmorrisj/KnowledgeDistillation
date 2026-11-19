@@ -1,0 +1,27 @@
+---
+import "./components.css";
+
+interface Props {
+  caption: string;
+  items: { label: string; percent: number }[];
+}
+const { caption, items } = Astro.props;
+const max = Math.max(...items.map((item) => item.percent));
+---
+
+<figure class="card probs">
+  <figcaption class="card-kicker">{caption}</figcaption>
+  <ul>
+    {
+      items.map((item) => (
+        <li>
+          <code>{item.label}</code>
+          <span class="probs-track">
+            <span class="probs-fill" style={`width:${(item.percent / max) * 100}%`} />
+          </span>
+          <span class="probs-value">{item.percent}%</span>
+        </li>
+      ))
+    }
+  </ul>
+</figure>

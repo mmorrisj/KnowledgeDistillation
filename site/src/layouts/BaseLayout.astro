@@ -1,0 +1,79 @@
+---
+import "../styles/base.css";
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+const hasSidebar = Astro.slots.has("sidebar");
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · Distilling Frontier Models</title>
+    <script is:inline>
+      // Apply a stored theme choice before first paint to avoid a flash.
+      try {
+        var t = localStorage.getItem("kd-course:theme");
+        if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="/">Distilling <span>Frontier Models</span></a>
+        <nav class="topbar-actions" aria-label="Site">
+          <a href="/settings/">Settings</a>
+          <button type="button" class="btn theme-toggle" id="theme-toggle">Dark theme</button>
+        </nav>
+      </div>
+    </header>
+    <div class:list={["shell", { "no-sidebar": !hasSidebar }]}>
+      {
+        hasSidebar && (
+          <aside class="shell-side">
+            <slot name="sidebar" />
+          </aside>
+        )
+      }
+      <main class="shell-main" id="main">
+        <div class="content">
+          <slot />
+        </div>
+      </main>
+    </div>
+    <script>
+      import { resolveTheme, THEME_KEY } from "../lib/theme";
+
+      const button = document.getElementById("theme-toggle");
+      const prefersDark = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const read = () => {
+        try {
+          return localStorage.getItem(THEME_KEY);
+        } catch {
+          return null;
+        }
+      };
+      let current = resolveTheme(read(), prefersDark());
+      const label = () => {
+        if (button) button.textContent = current === "dark" ? "Light theme" : "Dark theme";
+      };
+      label();
+      button?.addEventListener("click", () => {
+        current = current === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", current);
+        try {
+          localStorage.setItem(THEME_KEY, current);
+        } catch {
+          // The choice still applies for this page view.
+        }
+        label();
+      });
+    </script>
+  </body>
+</html>

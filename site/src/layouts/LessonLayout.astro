@@ -1,0 +1,54 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import CompleteLesson from "../components/CompleteLesson.tsx";
+import LabCard from "../components/LabCard.tsx";
+import ProgressBar from "../components/ProgressBar.tsx";
+import Sidebar from "../components/Sidebar.astro";
+import { MODULES } from "../content/modules";
+import { adjacent, type NavModule } from "../lib/nav";
+import "../styles/lesson.css";
+
+interface Props {
+  id: string;
+  nav: NavModule[];
+  title: string;
+  minutes: number;
+  objectives: string[];
+  lab?: { title: string; path: string; minutes: number };
+}
+const { id, nav, title, minutes, objectives, lab } = Astro.props;
+const moduleSlug = id.split("/")[0];
+const module = MODULES.find((m) => m.slug === moduleSlug);
+const lessonNumber = (nav.find((m) => m.slug === moduleSlug)?.lessons.findIndex((l) => l.id === id) ?? 0) + 1;
+const { prev, next } = adjacent(nav, id);
+const allLessonIds = nav.flatMap((m) => m.lessons.map((l) => l.id));
+---
+
+<BaseLayout title={title}>
+  <Sidebar slot="sidebar" nav={nav} currentId={id}>
+    <ProgressBar slot="progress" client:load lessonIds={allLessonIds} />
+  </Sidebar>
+  <header class="lesson-head">
+    <p class="eyebrow">{module?.title} · Lesson {lessonNumber}</p>
+    <h1>{title}</h1>
+    <ul class="chips" aria-label="Lesson details">
+      <li>About {minutes} min</li>
+      {lab && <li>Lab · {lab.minutes} min</li>}
+    </ul>
+  </header>
+  <section class="objectives" aria-labelledby="objectives-title">
+    <h2 id="objectives-title">By the end you can</h2>
+    <ul>
+      {objectives.map((objective) => <li>{objective}</li>)}
+    </ul>
+  </section>
+  <article class="prose">
+    <slot />
+  </article>
+  {lab && <LabCard client:load title={lab.title} path={lab.path} minutes={lab.minutes} />}
+  <CompleteLesson client:load lessonId={id} />
+  <nav class="pager" aria-label="Lesson">
+    {prev ? <a class="btn" href={prev.href}>← {prev.title}</a> : <span />}
+    {next ? <a class="btn" href={next.href}>{next.title} →</a> : <span />}
+  </nav>
+</BaseLayout>

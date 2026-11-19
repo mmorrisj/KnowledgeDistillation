@@ -1,0 +1,28 @@
+---
+import { getCollection, render } from "astro:content";
+import LessonLayout from "../../../layouts/LessonLayout.astro";
+import { getNav } from "../../../lib/lessons";
+
+export async function getStaticPaths() {
+  const entries = await getCollection("lessons");
+  return entries.map((entry) => {
+    const [module, lesson] = entry.id.split("/");
+    return { params: { module, lesson }, props: { entry } };
+  });
+}
+
+const { entry } = Astro.props;
+const nav = await getNav();
+const { Content } = await render(entry);
+---
+
+<LessonLayout
+  id={entry.id}
+  nav={nav}
+  title={entry.data.title}
+  minutes={entry.data.minutes}
+  objectives={entry.data.objectives}
+  lab={entry.data.lab}
+>
+  <Content />
+</LessonLayout>

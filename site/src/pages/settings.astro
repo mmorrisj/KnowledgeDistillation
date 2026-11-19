@@ -1,0 +1,57 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import "../styles/lesson.css";
+import "../components/components.css";
+---
+
+<BaseLayout title="Settings">
+  <header class="lesson-head">
+    <h1>Settings</h1>
+    <p class="lede">These settings are saved in this browser only.</p>
+  </header>
+  <form class="card" id="settings-form" novalidate>
+    <div class="field">
+      <label for="jupyter-url">Jupyter address</label>
+      <p class="feedback" id="jupyter-help">
+        The address you use to open Jupyter on your GPU machine, for example
+        <code>http://localhost:8888</code> when you forward the port over SSH. Lab buttons will
+        open notebooks there. Leave it empty to turn the buttons off.
+      </p>
+      <input
+        id="jupyter-url"
+        name="jupyter-url"
+        type="url"
+        inputmode="url"
+        autocomplete="off"
+        placeholder="http://localhost:8888"
+        aria-describedby="jupyter-help jupyter-message"
+      />
+      <p id="jupyter-message" role="status"></p>
+    </div>
+    <div><button type="submit" class="btn btn-primary">Save</button></div>
+  </form>
+</BaseLayout>
+
+<script>
+  import { getJupyterUrl, setJupyterUrl } from "../lib/settings";
+
+  const form = document.getElementById("settings-form") as HTMLFormElement | null;
+  const input = document.getElementById("jupyter-url") as HTMLInputElement | null;
+  const message = document.getElementById("jupyter-message");
+
+  if (form && input && message) {
+    input.value = getJupyterUrl() ?? "";
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const saved = setJupyterUrl(input.value);
+      input.setAttribute("aria-invalid", String(!saved));
+      message.className = saved ? "feedback" : "field-error";
+      if (saved) {
+        input.value = getJupyterUrl() ?? "";
+        message.textContent = input.value ? "Saved." : "Cleared.";
+      } else {
+        message.textContent = "Enter a full address that starts with http:// or https://.";
+      }
+    });
+  }
+</script>

@@ -1,0 +1,42 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getNav } from "../lib/lessons";
+import "../styles/lesson.css";
+
+const nav = await getNav();
+const first = nav.flatMap((module) => module.lessons)[0];
+---
+
+<BaseLayout title="Course home">
+  <header class="lesson-head">
+    <p class="eyebrow">Self-paced course</p>
+    <h1>Distilling Frontier Models</h1>
+    <p class="lede">
+      Learn to take what a large model can do on one task and move it into a small model you can
+      run cheaply. Read the lessons here, then run each lab in a notebook on your GPU.
+    </p>
+    {first && <p><a class="btn btn-primary" href={first.href}>Start with: {first.title}</a></p>}
+  </header>
+  <ol class="module-list">
+    {
+      nav.map((module, index) => (
+        <li class="module-card">
+          <div class="module-card-head">
+            <span class="module-number">{String(index).padStart(2, "0")}</span>
+            <h2>{module.title}</h2>
+            {module.status === "planned" && <span class="tag">Coming soon</span>}
+          </div>
+          {module.lessons.length > 0 && (
+            <ul>
+              {module.lessons.map((lesson) => (
+                <li>
+                  <a href={lesson.href}>{lesson.title}</a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</BaseLayout>

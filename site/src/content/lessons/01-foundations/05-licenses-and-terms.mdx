@@ -1,0 +1,101 @@
+---
+title: Licenses and terms
+order: 5
+minutes: 10
+objectives:
+  - Check whether a teacher's terms allow you to train another model on its outputs
+  - Read a model card for the license that applies to that exact model
+  - Run a short pre-flight checklist before collecting any training data
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+Distillation copies ability from one model into another. Whether you are allowed to do that depends on documents most people never read. Checking takes half an hour. Finding out after you have shipped can cost the project.
+
+This lesson is not legal advice. It tells you what to look for and when to ask someone whose job it is.
+
+## API teachers: read the terms of service
+
+When you call a model through an API, the provider's terms decide what you may do with the outputs. Many providers restrict using outputs to train or improve other models, and the details differ: some forbid it outright, some forbid only building a competing product, some allow it under certain plans.
+
+These terms change, and they differ between a consumer plan, a business plan and a negotiated contract. So this course does not tell you what any provider's terms say today. Instead:
+
+- Find the current terms for the exact plan your organization is on.
+- Search them for "train", "develop", "compete" and "outputs".
+- If the wording is unclear, ask your legal or procurement team before collecting data, not after.
+
+## Open-weight teachers and students: read the model card
+
+<PredictReveal
+  client:load
+  id="same-family"
+  prompt="Two models belong to the same family and were released by the same lab on the same day. Do they always carry the same license?"
+  options={["Yes, a family shares one license", "No, each model can have its own"]}
+>
+  No. Labs often release most sizes of a family under a permissive license and one or two sizes under a research-only or custom license. The Qwen2.5 family used in this course is an example: at the time of writing, most sizes are under Apache 2.0 while some sizes carry a different license. Always open the model card for the exact model you plan to use.
+</PredictReveal>
+
+"Open weights" does not mean "do anything". Look for three things on the model card:
+
+- **Commercial use.** Permissive licenses such as Apache 2.0 and MIT allow it. Research-only licenses do not.
+- **Conditions on derived models.** Some licenses carry over to anything trained from the model, or require you to name it.
+- **Acceptable-use rules.** Some licenses forbid certain applications.
+
+Your student has a license too. A student built on a research-only base model is research-only, however you trained it.
+
+## Datasets
+
+The inputs you send to the teacher also have terms. A public dataset has a license; the Banking77 dataset used in this course, for example, is published under a Creative Commons Attribution license, which allows reuse with credit. Your company's own data has rules about who may see it.
+
+## What you send to an API
+
+Black-box distillation means sending your inputs to someone else's servers. Before you do:
+
+- Remove or mask personal data you do not need.
+- Check whether your provider keeps or trains on what you send, and whether your plan lets you turn that off.
+- Check whether your own data-handling rules allow this data to leave your systems at all.
+
+## Pre-flight checklist
+
+Run through this before you collect a single teacher output.
+
+<ul class="checklist">
+  <li>I have read the current terms for our plan with the teacher's provider, or the license on the teacher's model card.</li>
+  <li>Those terms allow training another model on the outputs, for our intended use.</li>
+  <li>The student's base model has a license that allows our intended use.</li>
+  <li>The input data may be used for this, and may leave our systems if an API is involved.</li>
+  <li>Personal and confidential data has been removed or masked where it is not needed.</li>
+  <li>I have written down which terms and licenses I checked, and the date.</li>
+</ul>
+
+<ReviewCard
+  client:load
+  fromModule="Three ideas kept apart"
+  question="Does LoRA make the model you run smaller?"
+>
+  No. LoRA makes training cheaper by updating only small added matrices. The model you run is still the full base model plus the adapter. Distilling into a smaller student is what gives you a smaller model.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="01-foundations/05-licenses-and-terms"
+  id="when-to-check"
+  question="When should you check whether a teacher's terms allow training on its outputs?"
+  options={[
+    {
+      text: "Before collecting any teacher outputs",
+      correct: true,
+      feedback: "If the terms rule it out, you need a different teacher. Finding that out first costs nothing; finding it out later means throwing away the data and the student.",
+    },
+    {
+      text: "After the student is trained, before it goes to production",
+      feedback: "By then you have paid for the teacher's outputs and the training. If the terms forbid it, all of that work is unusable.",
+    },
+    {
+      text: "Only if the student will be sold to customers",
+      feedback: "Many terms restrict training itself, not only selling the result. Internal use can be covered too.",
+    },
+  ]}
+/>

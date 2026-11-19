@@ -1,0 +1,137 @@
+---
+title: Three ideas kept apart
+order: 4
+minutes: 12
+objectives:
+  - Define fine-tuning, distillation and LoRA in one sentence each
+  - State the question each one answers
+  - Spot common mix-ups, such as treating LoRA as a kind of distillation
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import SortDrill from "../../../components/SortDrill.tsx";
+
+These three terms are often used loosely, sometimes as if they meant the same thing. They do not. Each answers a different question, and keeping them apart will save you from confused designs and confused conversations.
+
+## One sentence each
+
+- **Fine-tuning** is training a pretrained model further on examples of your task.
+- **Distillation** is training a student model on targets that come from a teacher model.
+- **LoRA** is a way of fine-tuning that freezes the original weights and trains a small set of added matrices.
+
+<div class="table-wrap">
+
+| | Fine-tuning | Distillation | LoRA |
+|---|---|---|---|
+| Question it answers | How do I adapt a pretrained model? | Where do the targets come from? | Which weights are allowed to change? |
+| What it changes in the loop | The data and the starting weights | The target | The update |
+| What you end up with | A full copy of the model with new weights | A student trained on a teacher's outputs | A small adapter file that sits on top of the base model |
+| Needs a teacher model? | No | Yes | No |
+
+</div>
+
+## How they fit together
+
+Distillation is fine-tuning with a different source of targets. When you distill, you are still fine-tuning the student; the labels simply come from a teacher.
+
+LoRA is fine-tuning with a different update. When people say "full fine-tuning" they mean every weight moves, as opposed to LoRA.
+
+So a single training run can be all three at once: you fine-tune a student (the activity), on a teacher's outputs (distillation), by training only adapters (LoRA).
+
+## Common mix-ups
+
+> "We distilled the model with LoRA."
+
+This may be true, but it describes two separate choices. Ask what the teacher was. If there was no teacher, it was LoRA fine-tuning on human labels, and nothing was distilled.
+
+> "LoRA makes the model smaller."
+
+It does not. LoRA makes training cheaper. The model you run afterwards is the same size as the base model, plus a small adapter. Distilling into a smaller student is what makes the model smaller.
+
+> "Distillation needs the teacher's weights."
+
+Only white-box distillation does. Training on a teacher's text answers through an API is also distillation.
+
+## Sort them
+
+The statements below are mixed on purpose. Deciding which idea each one belongs to is harder, and more useful, than reading about them one at a time.
+
+<SortDrill
+  client:load
+  lessonId="01-foundations/04-three-ideas"
+  id="sort"
+  categories={["Fine-tuning", "Distillation", "LoRA"]}
+  items={[
+    {
+      text: "You train a pretrained model further on 5,000 messages labelled by your support team.",
+      answer: "Fine-tuning",
+      why: "The targets are human labels and nothing is said about freezing weights. This is plain fine-tuning.",
+    },
+    {
+      text: "A large model writes the answers and a small model learns from them.",
+      answer: "Distillation",
+      why: "The targets come from a teacher model. That is what defines distillation.",
+    },
+    {
+      text: "The original weights are frozen and a few million added parameters are trained.",
+      answer: "LoRA",
+      why: "Freezing the base and training small added matrices is LoRA. It says nothing about where the targets come from.",
+    },
+    {
+      text: "The student is trained to match the teacher's probabilities.",
+      answer: "Distillation",
+      why: "Matching a teacher's probabilities is white-box distillation.",
+    },
+    {
+      text: "The result is a small file you load on top of the base model.",
+      answer: "LoRA",
+      why: "A LoRA run produces an adapter, usually a few megabytes, not a full copy of the model.",
+    },
+    {
+      text: "It answers the question: where do the targets come from?",
+      answer: "Distillation",
+      why: "Distillation is a choice about the source of the targets: a teacher, not a person.",
+    },
+    {
+      text: "It answers the question: which weights are allowed to change?",
+      answer: "LoRA",
+      why: "LoRA is a choice about the update. It works with human labels or with a teacher.",
+    },
+    {
+      text: "Every weight of a pretrained model is updated on labelled examples of the task.",
+      answer: "Fine-tuning",
+      why: "This is full fine-tuning: all weights move, and the targets are ordinary labels.",
+    },
+  ]}
+/>
+
+<ReviewCard
+  client:load
+  fromModule="The map"
+  question="What is the difference between black-box and white-box distillation?"
+>
+  In black-box distillation you only have the teacher's text answers, usually from an API, and train on them as labels. In white-box distillation you have the teacher's weights, so the student can be trained to match its full list of probabilities.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="01-foundations/04-three-ideas"
+  id="smaller-model"
+  question="A colleague wants a model that is ten times smaller and cheaper to run. Which technique does that?"
+  options={[
+    {
+      text: "LoRA, because it trains far fewer parameters",
+      feedback: "LoRA trains fewer parameters, but the model you run afterwards is the full base model plus an adapter. It is no smaller.",
+    },
+    {
+      text: "Distilling into a smaller student model",
+      correct: true,
+      feedback: "The student is a smaller model. Distillation is how it gets as much of the teacher's ability as it can hold.",
+    },
+    {
+      text: "Fine-tuning the large model for longer",
+      feedback: "More training changes the weights, not the number of them. The model stays the same size.",
+    },
+  ]}
+/>

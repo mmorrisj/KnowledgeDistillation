@@ -1,0 +1,429 @@
+/* Shared look for lesson building blocks. Colors come from tokens only. */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.card-kicker {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--step-1);
+}
+.card-question {
+  max-width: var(--measure);
+}
+.card.predict {
+  border-left: 5px solid var(--accent);
+}
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.choice[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--soft);
+}
+.choice[data-state="right"] {
+  border-color: var(--good);
+}
+.choice[data-state="right"]::after {
+  content: " ✓";
+}
+.choice[data-state="wrong"] {
+  border-color: var(--bad);
+  background: var(--hi);
+}
+.choice[data-state="wrong"]::after {
+  content: " ✗";
+}
+.feedback {
+  font-size: 0.9375rem;
+  color: var(--muted);
+  max-width: var(--measure);
+  min-height: 1.5em;
+}
+.feedback[data-state="right"] strong {
+  color: var(--good);
+}
+.feedback[data-state="wrong"] strong {
+  color: var(--bad);
+}
+.reveal {
+  border-top: 1px dashed var(--line);
+  padding-top: var(--space-3);
+  display: grid;
+  gap: var(--space-3);
+  max-width: var(--measure);
+}
+
+/* Concept grid */
+.concept {
+  display: grid;
+  gap: var(--space-3);
+}
+.concept-scroll {
+  overflow-x: auto;
+}
+.concept-table {
+  border-collapse: separate;
+  border-spacing: var(--space-2);
+  width: 100%;
+  min-width: 30rem;
+}
+.concept-table th {
+  text-align: left;
+  font-size: var(--step--1);
+  color: var(--muted);
+  font-weight: 600;
+}
+.concept-table tbody th {
+  width: 7rem;
+}
+.concept-cell {
+  width: 100%;
+  background: var(--surface);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+.concept-cell[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--soft);
+}
+.concept-detail dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font-size: 0.9375rem;
+}
+.concept-detail dt {
+  color: var(--muted);
+}
+.concept-detail dd {
+  margin: 0;
+}
+
+/* Lab card */
+.lab-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Completion and progress */
+.complete-done {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--good);
+  border: 1.5px solid var(--good);
+  border-radius: 999px;
+  padding: 0.35rem 1rem;
+}
+.complete-done::before {
+  content: "✓ ";
+}
+.progress {
+  display: grid;
+  gap: var(--space-2);
+}
+.progress-track {
+  height: 8px;
+  background: var(--soft);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.progress-label {
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+
+/* Worked example */
+.worked-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: var(--space-4);
+}
+.worked-code {
+  min-width: 0;
+}
+.worked-notes {
+  margin: 0;
+  padding-left: 1.3rem;
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  font-size: 0.9375rem;
+}
+.worked-notes li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+@media (max-width: 700px) {
+  .worked-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Settings form */
+.field {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 34rem;
+}
+.field label {
+  font-weight: 600;
+}
+.field input {
+  font: inherit;
+  padding: 0.55rem 0.75rem;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+}
+.field input[aria-invalid="true"] {
+  border-color: var(--bad);
+}
+.field-error {
+  color: var(--bad);
+  font-size: 0.9375rem;
+}
+
+/* Cost calculator */
+.calc-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-4);
+}
+.calc-group {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+  min-width: 0;
+}
+.calc-group legend {
+  font-weight: 700;
+  font-family: var(--font-display);
+  padding: 0 var(--space-2);
+}
+.calc-group .field label {
+  font-weight: 500;
+  font-size: 0.9375rem;
+}
+.calc-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.calc-input input {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.calc-results {
+  display: grid;
+  gap: var(--space-3);
+  border-top: 1px dashed var(--line);
+  padding-top: var(--space-4);
+}
+.calc-row {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr) 6.5rem;
+  gap: var(--space-3);
+  align-items: center;
+}
+.calc-row strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.calc-bar {
+  height: 1rem;
+  background: var(--soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.calc-bar div {
+  height: 100%;
+  background: var(--muted);
+  border-radius: 4px;
+  transition: width 0.25s ease;
+}
+.calc-bar div.own {
+  background: var(--accent);
+}
+@media (max-width: 560px) {
+  .calc-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .calc-bar {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+/* Sorting drill */
+.drill-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+.drill-items li {
+  display: grid;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.drill-text {
+  font-weight: 500;
+  max-width: var(--measure);
+}
+.drill-score {
+  font-weight: 700;
+  font-family: var(--font-display);
+}
+
+/* Training loop explorer and pipeline */
+.loop-stages,
+.pipeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.loop-stages li,
+.pipeline li {
+  position: relative;
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  font-size: var(--step--1);
+}
+.loop-stages li:not(:last-child)::after,
+.pipeline li:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  right: calc(-1 * var(--space-4));
+  width: var(--space-4);
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  color: var(--muted);
+}
+.loop-title,
+.pipeline-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+.loop-detail,
+.pipeline-detail {
+  color: var(--muted);
+}
+.loop-stages li[data-changed="true"] {
+  border-color: var(--accent);
+  background: var(--hi);
+}
+.loop-stages li[data-changed="true"] .loop-detail {
+  color: var(--ink);
+}
+.loop-tag {
+  justify-self: start;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+.loop-explain {
+  max-width: var(--measure);
+  min-height: 6.5em;
+}
+.pipeline-number {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .loop-stages,
+  .pipeline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .loop-stages li:not(:last-child)::after,
+  .pipeline li:not(:last-child)::after {
+    content: "↓";
+    right: auto;
+    left: 50%;
+    top: auto;
+    bottom: calc(-1 * var(--space-4));
+    height: var(--space-4);
+    line-height: var(--space-4);
+    transform: translateX(-50%);
+  }
+}
+
+/* Probability bars */
+.probs {
+  margin: 0;
+}
+.probs ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.probs li {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) 3.5rem;
+  gap: var(--space-3);
+  align-items: center;
+  font-size: 0.9375rem;
+}
+.probs-track {
+  height: 1rem;
+  background: var(--soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.probs-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+}
+.probs-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}

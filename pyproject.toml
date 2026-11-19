@@ -1,0 +1,38 @@
+[project]
+name = "kd-course"
+version = "0.1.0"
+description = "Self-paced knowledge distillation course: lesson site and labs"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+kd-course-serve = "server.main:run"
+
+[dependency-groups]
+server = ["fastapi>=0.115", "uvicorn[standard]>=0.32", "pydantic-settings>=2.6"]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.8", "nbformat>=5.10"]
+# Installed only on the GPU machine: `uv sync --group labs`
+labs = ["torch>=2.4", "transformers>=4.56", "accelerate>=1.0", "nbformat>=5.10", "ipykernel>=6.29", "jupyterlab>=4.2"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+dev-mode-dirs = [".", "src"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["server", "src/kd_course"]
+
+[tool.uv]
+default-groups = ["server", "dev"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

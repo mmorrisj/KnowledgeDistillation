@@ -1,0 +1,83 @@
+---
+title: "Lab: check your setup"
+order: 6
+minutes: 8
+objectives:
+  - Confirm that your GPU machine can run the course labs
+  - Measure how much smaller and faster the student is than the teacher
+  - Describe where the student's answers fall short of the teacher's
+lab:
+  title: Check your setup and meet the teacher and the student
+  path: labs/01_foundations/01_setup_check.ipynb
+  minutes: 10
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+This is the first hands-on lab. Nothing is trained yet. You will check that your machine is ready, then run the two models the course uses and compare them.
+
+## Before you start
+
+You need a GPU machine you can reach over SSH, with this course's repo on it. The file `labs/README.md` in the repo has the exact commands to install the lab software, start Jupyter and connect to it from your own computer.
+
+The first run downloads about 16 GB of model files, so start it on a good connection.
+
+## What the lab does
+
+1. **Checks the machine.** It looks for a GPU with at least 22 GB of memory, support for the bf16 number format, and enough free disk.
+2. **Runs the student**, a model with about 0.5 billion weights, on three customer messages and measures its speed and memory use.
+3. **Runs the teacher**, a model with about 7.6 billion weights, on the same messages.
+4. **Compares them**: size, speed, memory, and the answers themselves.
+
+## If the check says "Not ready"
+
+<div class="table-wrap">
+
+| Message | What it means | What to do |
+|---|---|---|
+| PyTorch is not installed | The lab software is missing on this machine | Run `make install-labs` in the repo folder |
+| No GPU was found | Jupyter is running on a machine without a GPU, or the drivers are missing | Check that you started Jupyter on the GPU machine; run `nvidia-smi` there |
+| The GPU has less than 22 GB | The card is too small for the teacher model | Use an A10G or larger |
+| The GPU does not support bf16 | The card is an older generation | Use an A10G or a newer card |
+| Not enough free disk | There is no room for the model files | Free up space, or point the model cache at a larger disk |
+
+</div>
+
+## Reading the results
+
+The last code cell prints a small table and one sentence. Expect the student to be about 15 times smaller. It will be faster too, but usually by less than 15 times, because part of the time for each token does not depend on model size.
+
+Then read the answers. On these three easy messages the student often does well. Look for the places it does not: an answer that drifts off the point, repeats itself, or misses what the customer needs. Those gaps are what distillation is meant to close for one task.
+
+Answer the three questions at the end of the notebook before you move on.
+
+<ReviewCard
+  client:load
+  fromModule="Why distill"
+  question="Name two situations where distilling a model is not worth the effort."
+>
+  Any two of these: the request volume is low, the task is still changing, the task is broad and open-ended, or you have no trusted way to measure quality.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="01-foundations/06-lab-setup"
+  id="speed-vs-size"
+  question="In the lab the student is about 15 times smaller than the teacher. What did you see for speed?"
+  options={[
+    {
+      text: "It was faster, but by less than 15 times",
+      correct: true,
+      feedback: "Part of the time per token is fixed overhead that does not shrink with the model, so speed improves by less than size does. Memory use tracks size more closely.",
+    },
+    {
+      text: "It was exactly 15 times faster",
+      feedback: "Speed does not scale exactly with size. Some of the work per token costs the same however small the model is.",
+    },
+    {
+      text: "It was slower, because small models need more steps",
+      feedback: "Both models produce one token per step. The student does less work per step, so it is faster.",
+    },
+  ]}
+/>

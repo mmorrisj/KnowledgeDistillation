@@ -1,0 +1,118 @@
+---
+title: How transformers learn
+order: 2
+minutes: 15
+objectives:
+  - Describe how a transformer turns text into a probability for each possible next token
+  - Explain how pretraining differs from the way classical models are trained
+  - Point to the part of the training loop that fine-tuning, distillation and LoRA each change
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import ProbBars from "../../../components/ProbBars.astro";
+import Quiz from "../../../components/Quiz.tsx";
+import TrainingLoopExplorer from "../../../components/TrainingLoopExplorer.tsx";
+
+Fine-tuning, distillation and LoRA are all small changes to one training process. This lesson gives you that process, with only as much detail as the rest of the course needs.
+
+## From text to probabilities
+
+A transformer never sees letters or words. It sees <mark>tokens</mark>: pieces of text, each mapped to a number. "Distillation" might be split into three tokens; "cat" is usually one.
+
+Given some tokens, the model produces one score for every token in its vocabulary, often more than 100,000 of them. These raw scores are called <mark>logits</mark>. A function called softmax turns the logits into probabilities that add up to 100%.
+
+<ProbBars
+  caption="The cat sat on the ____ (illustrative numbers)"
+  items={[
+    { label: "mat", percent: 62 },
+    { label: "floor", percent: 17 },
+    { label: "rug", percent: 8 },
+    { label: "couch", percent: 5 },
+    { label: "roof", percent: 0.4 },
+  ]}
+/>
+
+To write text, a model picks a token from this list, adds it to the input, and repeats. Everything a language model produces comes from this one step, done over and over.
+
+Keep this picture in mind. The full list of probabilities, not just the top answer, is what a student learns from in Module 3.
+
+## How the weights are learned
+
+A model's behavior is set by its <mark>weights</mark>: millions or billions of numbers. Training adjusts them with the same loop every time:
+
+1. Show the model an input.
+2. Let it predict.
+3. Compare the prediction with a <mark>target</mark>, the answer you wanted.
+4. Nudge every weight slightly in the direction that would have made the prediction closer to the target.
+
+The measure of the gap in step 3 is called the loss. For language models it is almost always cross-entropy, which is small when the model gave the target a high probability and large when it did not.
+
+## What makes transformers different
+
+Classical models, such as logistic regression or gradient-boosted trees, also learn by shrinking a loss. The difference is where the knowledge comes from.
+
+<div class="table-wrap">
+
+| | Classical model | Transformer |
+|---|---|---|
+| Starting point | Knows nothing | Already pretrained on a very large amount of text |
+| Input | Features a person designed | Raw text, as tokens |
+| Labels needed | Every example, for each task | None for pretraining; a small set for your task |
+| One model per task? | Yes, trained from scratch | One pretrained model, adapted to many tasks |
+
+</div>
+
+The key idea is <mark>pretraining</mark>. Text supplies its own targets: hide the next token and ask the model to predict it. Nobody has to label anything, so a model can be trained on billions of words. To predict the next token well, it has to pick up grammar, facts and a good deal of reasoning along the way.
+
+That gives training two stages. Pretraining is done once, at great expense, by a large lab. Adapting the result to your task is cheap, and it is the stage this course is about.
+
+## Two shapes of model
+
+You will use both of these as students.
+
+- **Encoder models** (BERT, ModernBERT) read the whole input at once and produce a summary of it. Add a small layer on top and they classify or extract. They are small and fast.
+- **Decoder models** (GPT, Qwen, Llama) read left to right and predict the next token. They generate text, which lets them do almost any task, at a higher cost.
+
+## One loop, five ways to use it
+
+<PredictReveal
+  client:load
+  id="what-distillation-changes"
+  prompt="Think about the four-step loop above. Which part do you expect distillation to change?"
+  options={["The input examples", "The target the model is pulled toward", "Which weights are allowed to move"]}
+>
+  The target. In distillation the student is pulled toward what a teacher model says, in place of a human label or alongside one. The third option describes LoRA. Use the explorer below to see each method next to the others.
+</PredictReveal>
+
+<TrainingLoopExplorer client:load />
+
+Notice that distillation and LoRA change different stages. That is why they can be used together, and why the next two lessons treat them as separate choices.
+
+## Going deeper
+
+This lesson left out how a transformer works inside. You do not need it to distill a model, but if you are curious, these are good places to start:
+
+- [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) by Jay Alammar
+- [Neural networks](https://www.3blue1brown.com/topics/neural-networks) by 3Blue1Brown, a video series
+
+<Quiz
+  client:load
+  lessonId="01-foundations/02-how-transformers-learn"
+  id="why-few-labels"
+  question="Why can a pretrained transformer learn a new task from a few thousand labelled examples, when a model trained from scratch would need far more?"
+  options={[
+    {
+      text: "It has more weights, so it memorizes the examples faster",
+      feedback: "More weights alone would make the problem worse: a large model with random weights needs more data, not less.",
+    },
+    {
+      text: "Its weights already hold general knowledge of language from pretraining",
+      correct: true,
+      feedback: "Pretraining did most of the learning. Your examples only have to teach the task, not the language.",
+    },
+    {
+      text: "It does not use a loss function",
+      feedback: "Every method in this course shrinks a loss. Only the data, the target or the set of weights that move is different.",
+    },
+  ]}
+/>
