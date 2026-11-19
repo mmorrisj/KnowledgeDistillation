@@ -46,11 +46,13 @@
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-def test_health(client):            # client built from create_app(Settings(site_dist=tmp_dist))
+def test_health(client):  # client built from create_app(Settings(site_dist=tmp_dist))
     assert client.get("/api/health").json() == {"status": "ok"}
+
 
 def test_config_defaults_to_tracking_off(client):
     assert client.get("/api/config").json() == {"tracking_enabled": False}
+
 
 def test_tracking_flag_read_from_env(monkeypatch):
     monkeypatch.setenv("TRACKING_ENABLED", "true")
@@ -76,12 +78,24 @@ def test_tracking_flag_read_from_env(monkeypatch):
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-def test_serves_index(client):            assert "<html" in client.get("/").text
-def test_serves_nested_page(client):      assert client.get("/modules/x/").status_code == 200
+def test_serves_index(client):
+    assert "<html" in client.get("/").text
+
+
+def test_serves_nested_page(client):
+    assert client.get("/modules/x/").status_code == 200
+
+
 def test_unknown_page_gets_styled_404(client):
-    r = client.get("/nope/"); assert r.status_code == 404 and "text/html" in r.headers["content-type"]
+    r = client.get("/nope/")
+    assert r.status_code == 404 and "text/html" in r.headers["content-type"]
+
+
 def test_unknown_api_path_is_json_404(client):
-    r = client.get("/api/nope"); assert r.status_code == 404 and r.json() == {"detail": "Not Found"}
+    r = client.get("/api/nope")
+    assert r.status_code == 404 and r.json() == {"detail": "Not Found"}
+
+
 def test_missing_dist_raises_clear_error(tmp_path):
     with pytest.raises(SiteNotBuiltError, match="npm run build"):
         create_app(Settings(site_dist=tmp_path / "missing"))
