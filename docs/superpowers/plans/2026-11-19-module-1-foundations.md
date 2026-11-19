@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** The four Foundations lessons, the setup lab and the first slice of the shared `kd_course` Python package, so a student can read Module 1 and verify their GPU machine is ready.
+**Goal:** The five Foundations lessons, the setup lab and the first slice of the shared `kd_course` Python package, so a student can read Module 1 and verify their GPU machine is ready.
 
-**Architecture:** Lessons are MDX files using the existing components plus three new ones (cost calculator, sorting drill, pipeline diagram). The lab is a short notebook that calls tested functions in `src/kd_course`; all logic lives in the package, none in the notebook. Package tests run on CPU with a tiny randomly initialized model, so CI needs no GPU and no downloads.
+**Architecture:** Lessons are MDX files using the existing components plus four new ones (cost calculator, training-loop explorer, sorting drill, pipeline diagram). The lab is a short notebook that calls tested functions in `src/kd_course`; all logic lives in the package, none in the notebook. Package tests run on CPU with a tiny randomly initialized model, so CI needs no GPU and no downloads.
 
 **Tech Stack:** As Plan 1, plus PyTorch, Transformers, nbformat (Python `labs` group).
 
@@ -146,10 +146,10 @@ it("labels the default prices as examples")
 - [ ] **Step 4: Run** `npm test && npm run check`. Expected: PASS.
 - [ ] **Step 5: Commit** `feat(site): cost calculator`
 
-### Task 4: Sorting drill, pipeline diagram, hidden modules
+### Task 4: Sorting drill, training-loop explorer, pipeline diagram, hidden modules
 
 **Files:**
-- Create: `site/src/components/SortDrill.tsx`, `SortDrill.test.tsx`, `site/src/components/PipelineDiagram.astro`
+- Create: `site/src/components/SortDrill.tsx`, `SortDrill.test.tsx`, `site/src/components/TrainingLoopExplorer.tsx`, `TrainingLoopExplorer.test.tsx`, `site/src/components/PipelineDiagram.astro`
 - Modify: `site/src/lib/nav.ts`, `nav.test.ts`, `site/src/content/modules.ts`, `site/src/styles/lesson.css` (table styling for prose)
 
 **Interfaces:**
@@ -159,6 +159,10 @@ it("labels the default prices as examples")
 SortDrill: { lessonId: string; id: string; categories: string[]; items: { text: string; answer: string; why: string }[] }
 // Each item shows category buttons. Choosing shows "Correct." or "Not quite. It is <answer>." plus `why`.
 // Footer: "<n> of <total> sorted correctly". Each item recorded via recordQuiz(lessonId, `${id}:${index}`, choice, correct).
+TrainingLoopExplorer: {}   // fixed content. Shows the training loop as five stages: Input text → Model weights → Predicted probabilities → Target → Update.
+// Mode buttons: "Training from scratch", "Pretraining", "Fine-tuning", "Distillation", "LoRA". Each mode marks which stages change
+// (data-changed="true" plus a visible "changes here" tag) and shows a two-sentence explanation.
+// Fine-tuning changes Input (your labelled data) ; Distillation changes Target (teacher's probabilities or answers); LoRA changes Update (only small added matrices).
 ModuleInfo gains `hidden?: boolean`; buildNav omits hidden modules.
 PipelineDiagram: { steps: { label: string; detail: string }[] }   // inline SVG-free, CSS flex with arrows; reads as an ordered list to screen readers
 ```
@@ -170,6 +174,9 @@ it("buildNav omits modules marked hidden")
 it("shows the explanation and correct category after a wrong choice")
 it("counts an item once when answered wrong then right")     // footer reads "1 of 2 sorted correctly"
 it("records each item under its own quiz id")
+it("TrainingLoopExplorer: Distillation marks only the Target stage as changed")
+it("TrainingLoopExplorer: LoRA marks only the Update stage as changed")
+it("TrainingLoopExplorer: every mode shows an explanation, and the first mode is selected at rest")
 ```
 
 - [ ] **Step 2: Run** `npm test`. Expected: FAIL.
@@ -177,7 +184,7 @@ it("records each item under its own quiz id")
 - [ ] **Step 4: Run** `npm test && npm run check && npm run build`. Expected: PASS; `dist/modules/00-sample/01-components/index.html` still exists.
 - [ ] **Step 5: Commit** `feat(site): sorting drill, pipeline diagram, hidden modules`
 
-### Task 5: Lessons 1.1 to 1.4
+### Task 5: Lessons 1.1 to 1.5
 
 **Files:**
 - Create: `site/src/content/lessons/01-foundations/01-why-distill.mdx`, `02-the-map.mdx`, `03-three-ideas.mdx`, `04-licenses-and-terms.mdx`
@@ -188,24 +195,25 @@ it("records each item under its own quiz id")
 | Lesson | Teaches | Components |
 |---|---|---|
 | 1.1 Why distill | A large model is a ceiling on quality but costly per request, slow, and outside your control. A small task-specific model can match it on one narrow task. When distilling is not worth it (low volume, task still changing). | PredictReveal (guess the break-even volume), CostCalculator, Quiz |
-| 1.2 The map | Teacher and student. The two independent choices: signal (black-box text or white-box probabilities) and update method (full fine-tune or LoRA). The course pipeline: baseline, teacher signal, train, evaluate, serve. | PipelineDiagram, ConceptGrid, Quiz |
-| 1.3 Three ideas kept apart | Fine-tuning = training a pretrained model further on labelled data. Distillation = the labels or targets come from a teacher model. LoRA = training small added matrices and freezing the rest. Distillation answers "where do targets come from"; LoRA answers "which weights change". Common mix-ups. | Comparison table, SortDrill (8 statements sorted into the three), ReviewCard (from 1.2), Quiz |
-| 1.4 Licenses and terms | API terms often restrict training other models on outputs; read the current terms for your provider and plan before collecting data. Open-weight licenses differ within one model family (check each model card). Dataset licenses. Personal and confidential data sent to an API. A pre-flight checklist. | PredictReveal, checklist, Quiz, ReviewCard (from 1.3) |
+| 1.2 How transformers learn | Added at the course owner's request. Text becomes tokens; the model outputs a score per possible next token; softmax turns scores into probabilities; training nudges weights to raise the probability of the right token (cross-entropy). How this differs from classical models: those are trained from scratch per task on hand-built features, while a transformer is pretrained once on huge unlabelled text and then adapted. Encoder (classify, extract) versus decoder (generate). Then the payoff: fine-tuning, distillation and LoRA each change one part of the same loop. | PredictReveal, next-token probability bars (static figure), comparison table (classical vs pretrained transformer), TrainingLoopExplorer, Quiz |
+| 1.3 The map | Teacher and student. The two independent choices: signal (black-box text or white-box probabilities) and update method (full fine-tune or LoRA). The course pipeline: baseline, teacher signal, train, evaluate, serve. | PipelineDiagram, ConceptGrid, Quiz |
+| 1.4 Three ideas kept apart | Fine-tuning = training a pretrained model further on labelled data. Distillation = the labels or targets come from a teacher model. LoRA = training small added matrices and freezing the rest. Distillation answers "where do targets come from"; LoRA answers "which weights change". Common mix-ups. | Comparison table, SortDrill (8 statements sorted into the three), ReviewCard (from 1.2), Quiz |
+| 1.5 Licenses and terms | API terms often restrict training other models on outputs; read the current terms for your provider and plan before collecting data. Open-weight licenses differ within one model family (check each model card). Dataset licenses. Personal and confidential data sent to an API. A pre-flight checklist. | PredictReveal, checklist, Quiz, ReviewCard (from 1.4) |
 
 - [ ] **Step 1: Write the failing browser tests**
 
 ```ts
-for each of the four lesson URLs: h1 visible, no serious or critical axe violations (light and dark)
+for each of the five lesson URLs: h1 visible, no serious or critical axe violations (light and dark)
 test("the home page starts at Why distill and does not list the component sampler")
 test("the cost calculator updates when requests per day changes")
 ```
 
 - [ ] **Step 2: Run** `make e2e`. Expected: FAIL (404s).
-- [ ] **Step 3: Write the four lessons.** Each has 2 to 4 objectives, about 600 to 900 words, and ends with a Quiz. References to later modules are plain text ("covered in Module 3"), not links.
+- [ ] **Step 3: Write the five lessons.** Each has 2 to 4 objectives, about 600 to 900 words, and ends with a Quiz. References to later modules are plain text ("covered in Module 3"), not links.
 - [ ] **Step 4: Run** `make test && make e2e`. Expected: PASS.
-- [ ] **Step 5: Commit** `feat(course): Module 1 lessons 1.1 to 1.4`
+- [ ] **Step 5: Commit** `feat(course): Module 1 lessons 1.1 to 1.5`
 
-### Task 6: Lesson 1.5 and the setup lab
+### Task 6: Lesson 1.6 and the setup lab
 
 **Files:**
 - Create: `site/src/content/lessons/01-foundations/05-lab-setup.mdx`, `labs/01_foundations/01_setup_check.ipynb`, `labs/README.md`, `tests/labs/test_notebooks.py`
@@ -227,8 +235,8 @@ def test_at_least_one_notebook_found()
 ```
 
 - [ ] **Step 2: Run** `uv run pytest tests/labs -q`. Expected: FAIL (no notebooks).
-- [ ] **Step 3: Write** the notebook, `labs/README.md` (install with `make install-labs`, start Jupyter over an SSH port forward, set `KD_COURSE_MODEL_DIR` if models are pre-downloaded), and lesson 1.5 (what to expect, how long, how to read the results, what to do for each problem line).
+- [ ] **Step 3: Write** the notebook, `labs/README.md` (install with `make install-labs`, start Jupyter over an SSH port forward, set `KD_COURSE_MODEL_DIR` if models are pre-downloaded), and lesson 1.6 (what to expect, how long, how to read the results, what to do for each problem line).
 - [ ] **Step 4: Run** `make test && make e2e && uv run --group labs pytest -q`. Expected: PASS.
-- [ ] **Step 5: Commit** `feat(course): setup lab and lesson 1.5`
+- [ ] **Step 5: Commit** `feat(course): setup lab and lesson 1.6`
 
 **Known limit:** the notebook cannot be executed in this build environment (no GPU, no model downloads). Its code paths are covered by the CPU tests in Tasks 1 and 2; a run on a real A10G is a manual check for the course owner before release.
