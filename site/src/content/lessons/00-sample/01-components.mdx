@@ -28,7 +28,7 @@ A hard label tells the student only that the answer is "mat". The teacher's prob
 Two choices are independent: where the training signal comes from, and how the student's weights are updated. Select a cell to see what it means.
 
 <ConceptGrid
-  client:visible
+  client:load
   rows={["Black-box (API teacher, text only)", "White-box (open weights, probabilities)"]}
   cols={["Full fine-tune", "LoRA / QLoRA"]}
   cells={[
@@ -98,7 +98,7 @@ def kd_loss(s_logits, t_logits, labels, T=2.0, alpha=0.5):
 Students commit to a guess before they see the result. Being wrong first makes the explanation stick.
 
 <PredictReveal
-  client:visible
+  client:load
   id="banana"
   prompt="A teacher gives “banana” almost no probability for “The cat sat on the ____”. If you raise the temperature from 1 to 8, what happens to it?"
   options={["It stays near 0%", "It rises, but stays the least likely", "It overtakes “roof”"]}
@@ -111,7 +111,7 @@ Students commit to a guess before they see the result. Being wrong first makes t
 Each lesson ends with a short quiz. Every answer gets an explanation, not only a tick or a cross.
 
 <Quiz
-  client:visible
+  client:load
   lessonId="00-sample/01-components"
   id="api-teacher"
   question="Your teacher is a frontier model you can only reach through an API that returns text. Which method can you use?"
@@ -137,7 +137,7 @@ Each lesson ends with a short quiz. Every answer gets an explanation, not only a
 Questions from earlier modules come back in later lessons, so students practice recalling them.
 
 <ReviewCard
-  client:visible
+  client:load
   fromModule="Baselines and evaluation"
   question="What three scores do you report before claiming distillation helped?"
 >

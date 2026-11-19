@@ -78,6 +78,20 @@ pre {
   line-height: 1.65;
   font-size: var(--step--1);
 }
+/* Highlighted code: light colors are inline; dark colors come from --shiki-dark. */
+.astro-code {
+  background-color: var(--bg) !important;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .astro-code,
+  :root:not([data-theme="light"]) .astro-code span {
+    color: var(--shiki-dark) !important;
+  }
+}
+:root[data-theme="dark"] .astro-code,
+:root[data-theme="dark"] .astro-code span {
+  color: var(--shiki-dark) !important;
+}
 mark {
   background: var(--hi);
   color: inherit;
