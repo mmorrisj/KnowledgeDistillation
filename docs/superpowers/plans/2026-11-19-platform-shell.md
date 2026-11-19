@@ -29,7 +29,6 @@
 2. The server starts before the site is built: it exits with a message that names the missing folder and the build command, not a stack trace. (Task 2)
 3. A student enters a bad Jupyter address (`javascript:`, no scheme, trailing slashes): only `http`/`https` are accepted and the saved value is normalized. (Task 7)
 4. An unknown page returns the styled 404 page; an unknown `/api/...` path returns JSON 404, never HTML. (Task 2)
-5. The site is hosted under a path prefix behind a gateway: every internal link and asset honors the prefix. (Tasks 3 and 4)
 
 ---
 
@@ -40,7 +39,7 @@
 - Test: `tests/server/test_config_api.py`
 
 **Interfaces:**
-- Produces: `server.config.Settings` (pydantic-settings; fields `tracking_enabled: bool = False`, `site_dist: Path = Path("site/dist")`, `base_path: str = ""`; env names `TRACKING_ENABLED`, `SITE_DIST`, `BASE_PATH`).
+- Produces: `server.config.Settings` (pydantic-settings; fields `tracking_enabled: bool = False`, `site_dist: Path = Path("site/dist")`; env names `TRACKING_ENABLED`, `SITE_DIST`).
 - Produces: `server.main.create_app(settings: Settings | None = None) -> FastAPI`.
 - Produces: `GET /api/health` → `{"status": "ok"}`; `GET /api/config` → `{"tracking_enabled": false}`.
 
@@ -70,7 +69,7 @@ def test_tracking_flag_read_from_env(monkeypatch):
 - Create: `server/static.py`, `tests/server/test_static.py`, `tests/server/conftest.py` (fixture `tmp_dist` writes `index.html`, `404.html`, `modules/x/index.html`)
 
 **Interfaces:**
-- Consumes: `Settings.site_dist`, `Settings.base_path`.
+- Consumes: `Settings.site_dist`.
 - Produces: `server.static.mount_site(app: FastAPI, settings: Settings) -> None`; `server.static.SiteNotBuiltError(RuntimeError)`.
 - Produces: console entry `kd-course-serve` (`server.main:run`) starting uvicorn on `HOST`/`PORT` (defaults `127.0.0.1`, `8000`).
 
@@ -86,40 +85,37 @@ def test_unknown_api_path_is_json_404(client):
 def test_missing_dist_raises_clear_error(tmp_path):
     with pytest.raises(SiteNotBuiltError, match="npm run build"):
         create_app(Settings(site_dist=tmp_path / "missing"))
-def test_base_path_prefix(tmp_dist):
-    c = TestClient(create_app(Settings(site_dist=tmp_dist, base_path="/kd")))
-    assert c.get("/kd/").status_code == 200 and c.get("/kd/api/health").status_code == 200
 ```
 
 - [ ] **Step 2: Run** `uv run pytest tests/server/test_static.py -v`. Expected: FAIL.
 - [ ] **Step 3: Implement `mount_site`.** API routes are registered before the static mount; the static handler serves `404.html` with status 404 for misses; `run()` catches `SiteNotBuiltError` and exits with code 1 after printing the message.
 - [ ] **Step 4: Run** `uv run pytest -v`. Expected: PASS.
-- [ ] **Step 5: Commit** `feat(server): serve built site with 404 handling and base path`
+- [ ] **Step 5: Commit** `feat(server): serve built site with 404 handling`
 
 ### Task 3: Astro scaffold, Studio tokens and base layout
 
 **Files:**
-- Create: `site/package.json`, `site/astro.config.mjs`, `site/tsconfig.json`, `site/src/styles/tokens.css`, `site/src/styles/base.css`, `site/src/layouts/BaseLayout.astro`, `site/src/pages/index.astro`, `site/src/pages/404.astro`, `site/src/lib/paths.ts`, `site/src/lib/paths.test.ts`, `site/vitest.config.ts`
+- Create: `site/package.json`, `site/astro.config.mjs`, `site/tsconfig.json`, `site/src/styles/tokens.css`, `site/src/styles/base.css`, `site/src/layouts/BaseLayout.astro`, `site/src/pages/index.astro`, `site/src/pages/404.astro`, `site/vitest.config.ts`, `site/src/lib/theme.ts`, `site/src/lib/theme.test.ts`
 
 **Interfaces:**
-- Produces: `withBase(path: string): string` in `site/src/lib/paths.ts`, joining `import.meta.env.BASE_URL` and a root-relative path with exactly one slash. All internal links use it.
+- Produces: `resolveTheme(stored: string | null, prefersDark: boolean): "light" | "dark"` in `site/src/lib/theme.ts`; a header toggle stores the choice under `kd-course:theme` and sets `data-theme` on `<html>`.
 - Produces: CSS custom properties, light values on `:root`, dark values under `prefers-color-scheme: dark` and `[data-theme="dark"]`: `--bg #f7f8f7/#101615`, `--surface #ffffff/#18201f`, `--ink #14211f/#e3ecea`, `--muted #5b6866/#97a8a5`, `--line #e1e6e4/#2a3533`, `--accent #0e6f66/#4fd1c0`, `--accent-ink #ffffff/#06201d`, `--soft #e3f1ee/#173330`, `--hi #fde4d3/#4a2a17`, `--good #0e6f66/#4fd1c0`, `--bad #c2410c/#fb923c`, `--radius 14px`, `--font-display`, `--font-body`, `--font-mono`.
 - Produces: `BaseLayout.astro` props `{ title: string }`, with a default slot and a named `sidebar` slot; two-column above 860px, stacked below.
 - Produces: npm scripts `dev`, `build`, `check` (`astro check`), `test` (`vitest run`).
-- Astro `base` is read from env `SITE_BASE` (default `/`).
+- The site is served from the root path; no path prefix.
 
-- [ ] **Step 1: Write the failing test** (`paths.test.ts`)
+- [ ] **Step 1: Write the failing test** (`theme.test.ts`)
 
 ```ts
-expect(withBase("/modules/a/", "/")).toBe("/modules/a/");
-expect(withBase("/modules/a/", "/kd/")).toBe("/kd/modules/a/");
-expect(withBase("modules/a/", "/kd")).toBe("/kd/modules/a/");
+expect(resolveTheme("dark", false)).toBe("dark");
+expect(resolveTheme("light", true)).toBe("light");
+expect(resolveTheme(null, true)).toBe("dark");
+expect(resolveTheme("garbage", false)).toBe("light");
 ```
-(`withBase(path, base = import.meta.env.BASE_URL)`.)
 
-- [ ] **Step 2: Scaffold** `site/` with Astro, `@astrojs/mdx`, `@astrojs/react`, `@fontsource-variable/bricolage-grotesque`, `@fontsource-variable/inter`, `@fontsource-variable/jetbrains-mono`, vitest. Run `npm test`. Expected: FAIL (`withBase` missing).
-- [ ] **Step 3: Implement** `withBase`, the token and base stylesheets, `BaseLayout`, a home page listing nothing yet, and a 404 page. Styling reference: direction B in the approved mockup (`https://claude.ai/artifact/LwWYtXQxhNWtfrC6N5Qz4e`).
-- [ ] **Step 4: Run** `npm test && npm run check && npm run build`, then `SITE_BASE=/kd/ npm run build` and confirm `dist/index.html` references assets under `/kd/`. Expected: all pass.
+- [ ] **Step 2: Scaffold** `site/` with Astro, `@astrojs/mdx`, `@astrojs/react`, `@fontsource-variable/bricolage-grotesque`, `@fontsource-variable/inter`, `@fontsource-variable/jetbrains-mono`, vitest. Run `npm test`. Expected: FAIL (`resolveTheme` missing).
+- [ ] **Step 3: Implement** `resolveTheme`, the theme toggle, the token and base stylesheets, `BaseLayout`, a home page listing nothing yet, and a 404 page. Styling reference: direction B in the approved mockup (`https://claude.ai/artifact/LwWYtXQxhNWtfrC6N5Qz4e`).
+- [ ] **Step 4: Run** `npm test && npm run check && npm run build`. Expected: all pass.
 - [ ] **Step 5: Commit** `feat(site): Astro scaffold with Studio tokens and base layout`
 
 ### Task 4: Lesson collection, routing and sidebar
@@ -131,7 +127,7 @@ expect(withBase("modules/a/", "/kd")).toBe("/kd/modules/a/");
 **Interfaces:**
 - Produces: lesson front matter schema: `title: string`, `order: number`, `minutes: number`, `objectives: string[]` (1 to 5), `lab?: { title: string, path: string, minutes: number }`. The lesson id is `<module-slug>/<lesson-slug>` taken from the file path.
 - Produces: `modules.ts` exporting `MODULES: { slug: string, title: string, status: "available" | "planned" }[]` with the eight modules from the spec plus `00-sample`.
-- Produces: `buildNav(lessons: {id: string, title: string, order: number}[], modules: typeof MODULES): NavModule[]` where `NavModule = { slug, title, status, lessons: { id, title, href }[] }`; lessons sorted by `order`; `href` is `/modules/<module>/<lesson>/` before `withBase`.
+- Produces: `buildNav(lessons: {id: string, title: string, order: number}[], modules: typeof MODULES): NavModule[]` where `NavModule = { slug, title, status, lessons: { id, title, href }[] }`; lessons sorted by `order`; `href` is `/modules/<module>/<lesson>/`.
 - Produces: `adjacent(nav: NavModule[], id: string): { prev?: NavLesson, next?: NavLesson }`.
 - Produces: `LessonLayout.astro` rendering eyebrow, title, meta chips, objectives box, content slot, prev/next links.
 
@@ -300,6 +296,6 @@ await page.goto("/nope/"); await expect(page.getByRole("heading", { name: "Page 
 ```
 
 - [ ] **Step 2: Run** `make e2e`. Expected: FAIL (no Makefile).
-- [ ] **Step 3: Implement** the Makefile and Playwright config (`--trace off`, system Chromium via `executablePath: '/opt/pw-browsers/chromium'` only if the default launch fails), CI (jobs: python lint and tests; site test, check, build; e2e), the operator guide (install, build, serve, env vars, serving under a path prefix, a sample systemd unit, and a note that tracking arrives in Plan 2), and a README that points students to the site and operators to the guide.
+- [ ] **Step 3: Implement** the Makefile and Playwright config (`--trace off`, system Chromium via `executablePath: '/opt/pw-browsers/chromium'` only if the default launch fails), CI (jobs: python lint and tests; site test, check, build; e2e), the operator guide (install, build, serve, env vars, a sample systemd unit, and a note that tracking arrives in Plan 2), and a README that points students to the site and operators to the guide.
 - [ ] **Step 4: Run** `make test && make e2e`. Expected: PASS.
 - [ ] **Step 5: Commit** `chore: Makefile, smoke test, CI and operator guide`
