@@ -27,6 +27,21 @@ def _batches(tokenizer: Any, texts: list[str], batch_size: int, max_length: int,
         ).to(device)
 
 
+def _schedule(optimizer: Any, total_steps: int) -> Any:
+    """Learning rate climbs for the first tenth of training, then falls steadily to zero."""
+    import torch
+
+    warmup = max(1, total_steps // 10)
+    return torch.optim.lr_scheduler.LambdaLR(
+        optimizer,
+        lambda step: (
+            (step + 1) / warmup
+            if step < warmup
+            else max(0.0, (total_steps - step) / max(1, total_steps - warmup))
+        ),
+    )
+
+
 def predict(trained: TrainedClassifier, texts: list[str], batch_size: int = 64) -> list[int]:
     """The most likely label for each text."""
     import torch
@@ -70,17 +85,7 @@ def train_classifier(
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
     steps_per_epoch = (len(train) + batch_size - 1) // batch_size
-    total_steps = epochs * steps_per_epoch
-    warmup = max(1, total_steps // 10)
-    # Learning rate climbs for the first tenth of training, then falls in a straight line to zero.
-    scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lambda step: (
-            (step + 1) / warmup
-            if step < warmup
-            else max(0.0, (total_steps - step) / max(1, total_steps - warmup))
-        ),
-    )
+    scheduler = _schedule(optimizer, epochs * steps_per_epoch)
     shuffle = torch.Generator().manual_seed(seed)
     trained = TrainedClassifier(model=model, tokenizer=tokenizer, max_length=max_length)
     best_accuracy, best_state = -1.0, None
