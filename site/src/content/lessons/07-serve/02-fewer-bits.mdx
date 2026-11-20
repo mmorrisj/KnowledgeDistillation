@@ -1,0 +1,109 @@
+---
+title: Fewer bits per weight
+order: 2
+minutes: 10
+objectives:
+  - Explain what quantization does to a model's weights
+  - Predict its effect on size, speed and accuracy
+  - Measure the accuracy cost before deciding to ship a quantized model
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import QuantizationExplorer from "../../../components/QuantizationExplorer.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+Distillation made the model smaller by giving it fewer weights. <mark>Quantization</mark> makes it smaller again by storing each weight less precisely. You met it in Module 5 as a way to fit a large model on a card for training. Here it is used for serving.
+
+## Rounding to a short list of values
+
+A weight stored in 32 bits can take billions of different values. Stored in 8 bits it can take 256. Quantizing means choosing those 256 values to cover the range the weights actually span, and rounding every weight to the nearest one.
+
+<QuantizationExplorer client:load />
+
+Drag the slider down. At 8 bits the rounded weights sit almost exactly on the originals. At 4 bits you can see them move. At 2 bits several different weights collapse onto the same value.
+
+## What you gain and what you pay
+
+<div class="table-wrap">
+
+| Bits per weight | Size against 32-bit | Typical effect on accuracy |
+|---|---|---|
+| 16 | Half | None you can measure |
+| 8 | A quarter | Usually very small |
+| 4 | An eighth | Small to moderate; depends on the model and task |
+
+</div>
+
+Size falls in proportion to the bits. Speed is less predictable. On a CPU, 8-bit arithmetic is usually clearly faster. On a GPU, 4-bit weights are often slower, because they have to be unpacked before each use; there the gain is memory, not speed.
+
+<PredictReveal
+  client:load
+  id="quant-accuracy"
+  prompt="You quantize your student from 32 bits to 8 and its test accuracy moves from 78.4% to 78.1% on 1,000 messages. What do you conclude?"
+  options={["Quantization cost 0.3 points of accuracy", "The change is too small to tell from no change at all", "The quantized model is broken"]}
+>
+  Too small to tell. On 1,000 messages the margin is well over two points, and a paired comparison of the two models will almost certainly include zero. That is the common result at 8 bits, and it is good news: a quarter of the size for no measurable loss. Had the drop been five points, the same comparison would have told you it was real.
+</PredictReveal>
+
+## Always measure
+
+Quantization changes the model, so the test score you had no longer applies. Score the quantized model on the same test set and compare the two with a paired test, exactly as you compared students in earlier modules. It takes a minute and replaces a guess with a number.
+
+<WorkedExample
+  title="Quantize, then check"
+  notes={[
+    "A copy of the student with its linear layers stored in 8 bits. The original is left untouched.",
+    "Size on disk, before and after.",
+    "The same test messages, scored by both. Follow with a paired comparison.",
+  ]}
+>
+
+```python
+from kd_course.serving.export import ClassifierPredictor, model_size_mb, quantize_int8
+
+small = quantize_int8(student.model)                              # 1
+print(model_size_mb(student.model), model_size_mb(small))         # 2
+
+before = ClassifierPredictor(student.model, tokenizer, 64).predict(test_texts)
+after = ClassifierPredictor(small, tokenizer, 64).predict(test_texts)   # 3
+```
+
+</WorkedExample>
+
+The method used here is the simplest kind: the weights are rounded after training, with nothing else changed. It runs on a CPU, which suits a small encoder well. For large generative models on a GPU, 4-bit loading as in Module 5 is the usual choice.
+
+## The order of the steps
+
+If the student was trained with LoRA, recall the rule from lesson 5.4: merge the adapter into full-precision weights first, and quantize the merged model afterwards. Quantizing first and merging second rounds the result twice.
+
+<ReviewCard
+  client:load
+  fromModule="LoRA and QLoRA"
+  question="You trained an adapter with QLoRA and want one merged model. In what order do you merge and quantize?"
+>
+  Load the base model at 16 bits, merge the adapter into that, and quantize the merged model afterwards if you need it smaller.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="07-serve/02-fewer-bits"
+  id="gpu-4bit"
+  question="You load a generative student in 4 bits on a GPU hoping it will answer faster. What should you expect?"
+  options={[
+    {
+      text: "About eight times faster, matching the reduction in size",
+      feedback: "Size and speed do not move together. The 4-bit weights have to be unpacked each time they are used.",
+    },
+    {
+      text: "Much less memory used, and often no faster or somewhat slower",
+      correct: true,
+      feedback: "On a GPU, 4-bit loading is a way to fit a model, not to speed it up. Measure before assuming either.",
+    },
+    {
+      text: "No change in memory or speed",
+      feedback: "Memory falls substantially. That is the reason to do it.",
+    },
+  ]}
+/>

@@ -1,0 +1,140 @@
+---
+title: Serving with FastAPI
+order: 3
+minutes: 14
+objectives:
+  - Read the course's student service and say what each part is for
+  - Explain why the model is loaded once and why requests are limited
+  - Call the service and interpret what it returns
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+A service is a program that waits for requests and answers them. This lesson walks through the one the course provides, which is about a hundred lines, built with FastAPI.
+
+## What the service offers
+
+<div class="table-wrap">
+
+| Address | What it does |
+|---|---|
+| `GET /health` | Says the service is alive. Used by whatever keeps it running |
+| `GET /info` | Names the model, lists its labels and states the request limits |
+| `POST /classify` | Takes a list of messages, returns a label and a confidence for each |
+
+</div>
+
+A request and its answer look like this:
+
+```json
+{ "texts": ["I still haven't got my new card", "what rate do you use abroad?"] }
+```
+
+```json
+{
+  "predictions": [
+    { "label": "card_arrival", "confidence": 0.91 },
+    { "label": "exchange_rate", "confidence": 0.97 }
+  ],
+  "model": "classifier",
+  "latency_ms": 6.4
+}
+```
+
+## Five decisions inside it
+
+<WorkedExample
+  title="The heart of the service"
+  notes={[
+    "The request is described as a type. FastAPI rejects anything that does not fit before your code runs: an empty list, more than 64 messages, an empty message, or one over 2,000 characters.",
+    "The model is created once, outside the function, and reused for every request. Loading it per request would take seconds each time.",
+    "A plain def, not async def. FastAPI runs it in a worker thread, so a slow model call does not freeze the rest of the server and /health keeps answering.",
+    "One request at a time reaches the model. A GPU does not run two batches faster than one; throughput comes from batching inside a request.",
+    "If the model fails, the caller gets a short fixed message. The details go to the server's log, not to whoever sent the request.",
+  ]}
+>
+
+```python
+Text = Annotated[str, StringConstraints(
+    strip_whitespace=True, min_length=1, max_length=2000)]
+
+class ClassifyRequest(BaseModel):
+    texts: list[Text] = Field(min_length=1, max_length=64)       # 1
+
+def create_student_app(predictor, label_names):                  # 2
+    app = FastAPI(title="Distilled student")
+    model_lock = threading.Lock()
+
+    @app.post("/classify")
+    def classify(request: ClassifyRequest):                      # 3
+        try:
+            with model_lock:                                     # 4
+                results = predictor.predict(request.texts)
+        except Exception:
+            logger.exception("The model failed")
+            raise HTTPException(500,
+                "The model failed to answer this request.")      # 5
+        ...
+```
+
+</WorkedExample>
+
+## Why limits matter
+
+<PredictReveal
+  client:load
+  id="no-limits"
+  prompt="A service accepts any number of messages of any length in one request. Someone sends 50,000 long messages at once. What happens?"
+  options={["It takes a while and then answers", "It runs out of memory and every other caller is affected too", "FastAPI splits the request automatically"]}
+>
+  It runs out of memory, or ties up the model for minutes, and everyone else waits or fails. A service shared by many callers has to protect itself from the largest request any one of them might send. The limits here, 64 messages of up to 2,000 characters, are stated by `/info` so that callers can split their work to fit.
+</PredictReveal>
+
+## Confidence, and what it is good for
+
+The confidence is the probability the student gives its chosen label. It is not a guarantee: a model can be confidently wrong. It is still useful, because low-confidence answers are wrong much more often than high-confidence ones. Lesson 7.5 uses that to decide which messages to pass on to the teacher.
+
+## Running it
+
+On the machine that will serve the student:
+
+```bash
+uv run --group labs kd-student-serve
+```
+
+It reads its settings from the environment: which folder holds the saved student, whether to run on the GPU or the CPU, whether to load the 8-bit version, and which port to listen on. If the folder is not a saved student, it stops with a message saying so.
+
+This service is deliberately small. For a production system you would add authentication, request logging with care for personal data, and a process manager to restart it. The operator guide for the course site shows a process manager setup that works the same way here.
+
+<ReviewCard
+  client:load
+  fromModule="Fewer bits per weight"
+  question="After quantizing a model, what must you do before shipping it?"
+>
+  Score it on the same test set and compare it with the original using a paired test. The earlier score belonged to a different model.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="07-serve/03-serving-with-fastapi"
+  id="load-once"
+  question="Why is the model loaded once when the service starts, and not inside the function that handles each request?"
+  options={[
+    {
+      text: "Loading takes seconds and a great deal of memory; doing it per request would make every answer slow",
+      correct: true,
+      feedback: "The model is the expensive part. It is created once and every request reuses it.",
+    },
+    {
+      text: "FastAPI does not allow models inside request functions",
+      feedback: "It would allow it. It would just be very slow.",
+    },
+    {
+      text: "So that each request gets a fresh copy of the model",
+      feedback: "The opposite: every request shares the same copy, which is the point.",
+    },
+  ]}
+/>

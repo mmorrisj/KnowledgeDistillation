@@ -1,0 +1,86 @@
+---
+title: From a trained model to a service
+order: 1
+minutes: 10
+objectives:
+  - List what has to exist before other software can use your student
+  - Choose which student to serve by weighing quality against running cost
+  - Describe the path this module follows from saved model to measured service
+---
+
+import PipelineDiagram from "../../../components/PipelineDiagram.astro";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+A student sitting in a notebook has saved nobody any money. The point of distilling was to replace calls to a large model with calls to a small one, and that only happens when the small one is running somewhere other software can reach it. This module covers that last stretch.
+
+## What "serving" needs
+
+- **A fixed artifact.** One folder holding the weights, the tokenizer and the label names, so that what you tested is exactly what runs.
+- **A service.** A small program that loads the artifact once and answers requests over the network.
+- **Limits and checks.** What size of request it accepts, what it does with a bad one, and how you know it is alive.
+- **Measurements.** How long a request takes, how many it can handle, and what each costs.
+
+None of this is specific to distillation. It is ordinary software work, and it is the part most often skipped by people who came to the problem through modelling.
+
+## Which student?
+
+Over the course you built several students for the banking task: small encoders, and text-generation models with and without LoRA. They do the same job at very different running costs.
+
+<PredictReveal
+  client:load
+  id="which-student"
+  prompt="An encoder student with 150 million weights and a generative student with 1.5 billion weights score within a point of each other on your test set. Which would you put into production for sorting messages into types?"
+  options={["The generative student, because larger models are more capable", "The encoder, because it does the same job for a fraction of the running cost", "Whichever was trained most recently"]}
+>
+  The encoder. It produces all 77 scores in a single pass, while a generative student writes its answer one token at a time through a model ten times the size. When quality is the same, the cheaper model wins, because the running cost is paid on every request for as long as the service lives. Keep generative students for tasks whose output is text.
+</PredictReveal>
+
+The lab serves the encoder student distilled in Module 3. The same steps apply to any of the others.
+
+## The plan for this module
+
+<PipelineDiagram
+  steps={[
+    { label: "Save", detail: "Write the student to one folder with its tokenizer and labels." },
+    { label: "Shrink", detail: "Store the weights in fewer bits and check what accuracy it cost." },
+    { label: "Serve", detail: "Put it behind a small web service with limits and a health check." },
+    { label: "Measure", detail: "Time it under load and work out the cost of a thousand requests." },
+    { label: "Fall back", detail: "Send the messages it is unsure of to the teacher." },
+  ]}
+/>
+
+## The comparison that closes the course
+
+In lesson 1.1 you used a calculator to compare an API teacher with a self-hosted student using example numbers. At the end of this module you will fill in that comparison with numbers you measured: your student's accuracy, its speed on your hardware, and its cost per thousand requests next to the teacher's.
+
+<ReviewCard
+  client:load
+  fromModule="Foundations"
+  question="Name two situations where distilling a model is not worth the effort."
+>
+  Any two of: request volume is low, the task is still changing, the task is broad and open-ended, or you have no trusted way to measure quality.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="07-serve/01-from-model-to-service"
+  id="why-fixed-artifact"
+  question="Why save the student as one fixed folder before serving it, instead of serving straight from the training notebook?"
+  options={[
+    {
+      text: "Because notebooks cannot run models",
+      feedback: "They can. The problem is knowing exactly what is running later.",
+    },
+    {
+      text: "So that the model you tested and the model that answers requests are certainly the same thing",
+      correct: true,
+      feedback: "A saved folder can be copied, versioned, tested and rolled back. A model living in a notebook's memory can be none of those.",
+    },
+    {
+      text: "Because saved models are more accurate",
+      feedback: "Saving does not change the weights. It makes them reproducible.",
+    },
+  ]}
+/>

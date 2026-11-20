@@ -1,0 +1,106 @@
+---
+title: "Lab: serve your student"
+order: 6
+minutes: 10
+objectives:
+  - Save, shrink and serve a distilled student
+  - Measure its latency, throughput and cost next to the teacher's
+  - Choose a fallback threshold from your own results
+lab:
+  title: Serve your student
+  path: labs/07_serve/01_serve.ipynb
+  minutes: 45
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+This is the capstone. You take a student from the earlier modules through to a running service, and produce the comparison the course has been building toward. It needs results from Labs 2 and 3.
+
+## What the lab does
+
+1. **Trains and saves the student.** The probability-trained encoder from Module 3 is trained again from your saved teacher scores and written to one folder.
+2. **Shrinks it.** An 8-bit copy is made. Size and accuracy are compared with a paired test.
+3. **Times three versions in the notebook**: full precision on the GPU, full precision on the CPU, and 8-bit on the CPU.
+4. **Starts the service.** You run one command in a terminal. The notebook waits until the service answers.
+5. **Load-tests the service over the network**: single messages for latency, batches for throughput.
+6. **Times the teacher** on the same messages, and puts accuracy and cost per thousand messages for both in one table.
+7. **Builds the fallback table**: for a range of thresholds, the share sent to the teacher and the accuracy of the combined system.
+
+## Starting the service
+
+When the notebook tells you to, open a terminal on the GPU machine, go to the repo folder, and run:
+
+```bash
+uv run --group labs kd-student-serve
+```
+
+Leave it running and go back to the notebook. To serve the 8-bit version on the CPU instead, stop it and start it like this:
+
+```bash
+KD_STUDENT_QUANTIZE=1 uv run --group labs kd-student-serve
+```
+
+## Before you look at the results
+
+Predict and write down:
+
+- How much accuracy will 8 bits cost?
+- How many times cheaper per message will the student be than the teacher?
+- What share of messages would you need to send to the teacher to match its accuracy?
+
+## Reading the results
+
+- **Size and accuracy at 8 bits.** Expect about a quarter of the size. Check the paired interval before deciding whether the accuracy changed.
+- **CPU against GPU.** A small encoder is often fast enough on a CPU, which is a much cheaper machine. If the 8-bit CPU version meets your latency target, you may not need a GPU to serve it at all.
+- **Latency through the service against latency in the notebook.** The difference is the cost of the network and the web framework. For a model this small it can be a large share of the total.
+- **Student against teacher.** Accuracy and cost side by side. This is the measured version of the calculator in lesson 1.1. Remember the cost figure assumes a busy machine.
+- **The fallback table.** Find the lowest threshold at which the combined accuracy reaches the teacher's. The share sent at that row is roughly the fraction of the teacher's bill you would still pay.
+
+## If something goes wrong
+
+<div class="table-wrap">
+
+| What you see | Likely cause | What to do |
+|---|---|---|
+| "is not a saved student" when starting the service | The notebook's save step has not run | Run the lab's first section, then start the service again |
+| The notebook says the service is not answering | It is not running, or is on a different port | Check the terminal; the lab expects port 8100 |
+| Out of memory when the service starts | The notebook still holds a model on the GPU | Run the notebook's cell that frees the GPU, then start the service |
+| Status 422 from the service | The request broke a limit | Check `/info` for the limits: 64 messages, 2,000 characters each |
+| The 8-bit step fails | 8-bit linear layers are not supported for this model on this machine | Skip that section; the rest of the lab does not depend on it |
+
+</div>
+
+## What you have at the end
+
+A saved student, a service that answers for it, and one table: accuracy, latency, throughput and cost for the student and the teacher, plus what a fallback would buy. That table is what you would bring to the person deciding whether to switch.
+
+<ReviewCard
+  client:load
+  fromModule="The teacher as a fallback"
+  question="On which data do you choose a cascade's confidence threshold?"
+>
+  The validation set. The finished cascade is then scored once on the test set.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="07-serve/06-lab-serve"
+  id="cheaper-machine"
+  question="Your 8-bit student on a CPU answers in 9 ms with the same accuracy as the full-precision student on a GPU, which answers in 4 ms. Your latency target is 50 ms. Which do you deploy?"
+  options={[
+    {
+      text: "The GPU version, because it is faster",
+      feedback: "Both are far inside the target. The extra speed buys nothing a user would notice.",
+    },
+    {
+      text: "The CPU version: it meets the target, and a CPU machine costs much less to keep running",
+      correct: true,
+      feedback: "Once the target is met, the cheaper machine is the better choice. Speed beyond what is needed is money spent on nothing.",
+    },
+    {
+      text: "Neither until the CPU version is as fast as the GPU one",
+      feedback: "It does not need to be. It needs to meet the target.",
+    },
+  ]}
+/>

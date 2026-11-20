@@ -280,3 +280,62 @@ def test_generative_lab_flow(tiny_lm, tmp_path):
     assert all(0 <= r["metrics"]["accepted"] <= 1 for r in saved.values())
     # Generation results live in their own folder and do not disturb the classification table.
     assert load_results(tmp_path) == {}
+
+
+def test_serving_lab_flow(tiny_encoder_dir, tmp_path):  # noqa: F811
+    """Save, shrink, serve through the real web app, load-test, and build the fallback table."""
+    from fastapi.testclient import TestClient
+
+    from kd_course.serving.app import create_student_app
+    from kd_course.serving.cascade import cascade_stats, correct_flags, sweep_thresholds
+    from kd_course.serving.export import (
+        ClassifierPredictor,
+        load_classifier,
+        model_size_mb,
+        quantize_int8,
+        save_classifier,
+    )
+    from kd_course.serving.loadtest import cost_per_1k, run_load_test, summarize_latencies
+
+    labels = ["lost_card", "exchange_rate"]
+    student = train_classifier(
+        tiny_encoder_dir,
+        TRAIN,
+        TRAIN,
+        num_labels=2,
+        epochs=30,
+        learning_rate=5e-3,
+        batch_size=4,
+        device="cpu",
+    )
+    folder = save_classifier(student, labels, tmp_path / "students" / "classifier")
+
+    small = quantize_int8(student.model)
+    assert model_size_mb(small) < model_size_mb(student.model)
+    in_notebook = ClassifierPredictor(student.model, student.tokenizer, student.max_length)
+    results = in_notebook.predict(TRAIN.texts)
+
+    predictor, loaded_labels = load_classifier(folder, device="cpu", quantize=True)
+    client = TestClient(create_student_app(predictor, loaded_labels))
+
+    def call_service(batch):
+        response = client.post("/classify", json={"texts": list(batch)})
+        response.raise_for_status()
+        return response.json()
+
+    batches = [TRAIN.texts[i : i + 4] for i in range(0, len(TRAIN.texts), 4)]
+    load = run_load_test(call_service, batches * 3, concurrency=2)
+    assert load.errors == 0 and load.items == 3 * len(TRAIN.texts)
+    assert summarize_latencies(load.latencies)["p95_ms"] > 0
+    assert cost_per_1k(1.62, load.items_per_second) > 0
+
+    served = call_service(TRAIN.texts)["predictions"]
+    assert [p["label"] for p in served] == [labels[label] for label, _ in results]
+
+    confidences = [confidence for _, confidence in results]
+    student_right = correct_flags([label for label, _ in results], TRAIN.labels)
+    teacher_right = [True] * len(TRAIN.texts)
+    rows = sweep_thresholds(confidences, student_right, teacher_right, [0.0, 0.5, 1.01])
+    assert rows[-1]["accuracy"] == 1.0 and rows[-1]["sent_to_teacher"] == 1.0
+    chosen = next(row["threshold"] for row in rows if row["accuracy"] >= rows[-1]["accuracy"])
+    assert cascade_stats(confidences, student_right, teacher_right, chosen)["accuracy"] == 1.0

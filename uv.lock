@@ -1234,6 +1234,7 @@ labs = [
     { name = "accelerate" },
     { name = "bitsandbytes", marker = "sys_platform == 'linux'" },
     { name = "datasets" },
+    { name = "fastapi" },
     { name = "httpx" },
     { name = "ipykernel" },
     { name = "jupyterlab" },
@@ -1242,6 +1243,7 @@ labs = [
     { name = "peft" },
     { name = "torch" },
     { name = "transformers" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 server = [
     { name = "fastapi" },
@@ -1263,6 +1265,7 @@ labs = [
     { name = "accelerate", specifier = ">=1.0" },
     { name = "bitsandbytes", marker = "sys_platform == 'linux'", specifier = ">=0.44" },
     { name = "datasets", specifier = ">=3.0" },
+    { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "ipykernel", specifier = ">=6.29" },
     { name = "jupyterlab", specifier = ">=4.2" },
@@ -1271,6 +1274,7 @@ labs = [
     { name = "peft", specifier = ">=0.14" },
     { name = "torch", specifier = ">=2.4" },
     { name = "transformers", specifier = ">=4.56" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32" },
 ]
 server = [
     { name = "fastapi", specifier = ">=0.115" },
