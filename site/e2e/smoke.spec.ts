@@ -99,6 +99,12 @@ const LESSONS = [
   ["05-lora/03-choosing-the-settings", "Choosing the settings"],
   ["05-lora/04-qlora-and-merging", "QLoRA and merging"],
   ["05-lora/05-lab-lora", "Lab: a generative student with LoRA"],
+  ["06-generative/01-from-choosing-to-writing", "From choosing to writing"],
+  ["06-generative/02-learning-from-the-teachers-text", "Learning from the teacher's text"],
+  ["06-generative/03-matching-every-token", "Matching every token"],
+  ["06-generative/04-two-directions", "Two directions of matching"],
+  ["06-generative/05-scoring-generated-text", "Scoring generated text"],
+  ["06-generative/06-lab-generative", "Lab: distilling a writer"],
 ] as const;
 
 for (const [slug, title] of LESSONS) {
@@ -201,4 +207,20 @@ test("the LoRA size explorer responds to rank", async ({ page }) => {
   await hydrated(page);
   await page.getByRole("slider", { name: "Rank" }).fill("4");
   await expect(page.getByRole("status").filter({ hasText: "The full matrix has" })).toContainText("7,168");
+});
+
+test("the top-k explorer shrinks storage when fewer tokens are kept", async ({ page }) => {
+  await page.goto("/modules/06-generative/03-matching-every-token/");
+  await hydrated(page);
+  await expect(page.getByTestId("topk-size")).toHaveText("57.2 MB");
+  await page.getByRole("slider", { name: "Tokens kept per position" }).fill("5");
+  await expect(page.getByTestId("topk-size")).toHaveText("14.3 MB");
+});
+
+test("the KL explorer describes a student on one peak", async ({ page }) => {
+  await page.goto("/modules/06-generative/04-two-directions/");
+  await hydrated(page);
+  await page.getByRole("slider", { name: "Student position" }).fill("-2");
+  await page.getByRole("slider", { name: "Student width" }).fill("0.7");
+  await expect(page.getByRole("status").filter({ hasText: "Forward KL" })).toContainText("sits on one peak");
 });

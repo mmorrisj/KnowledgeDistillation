@@ -1,0 +1,101 @@
+---
+title: From choosing to writing
+order: 1
+minutes: 10
+objectives:
+  - Explain what changes when the student's output is text instead of one choice
+  - Describe the two kinds of distillation for a model that writes
+  - Say why scoring becomes harder, and what replaces accuracy
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+Every student so far has picked one answer from a fixed list. Most of what people use language models for is not like that: summarizing, rewriting, extracting, replying. The output is text, and there is no list. This module distills a model that writes.
+
+## The task for this module
+
+The data stays the same: customer messages to a bank. The task changes. For each message the model writes a short <mark>ticket title</mark>, at most eight words, saying what the customer needs.
+
+> **Message:** hi, i ordered my card nearly 3 weeks ago and still nothing has come in the post, can you check??<br />
+> **Title:** New card not received after three weeks
+
+There are many good titles for that message, and no single correct one. That fact shapes the whole module.
+
+## What changes
+
+**The output is a sequence.** A classifier makes one decision. A writer makes one decision per token, and each depends on the ones before. An early slip changes everything after it.
+
+**The teacher's signal is much larger.** In Module 3 the teacher gave 77 numbers per message. A writer has a probability for every token in its vocabulary, about 150,000 of them, at every position of every answer.
+
+**The tokenizer has to match.** With 77 types, the teacher's and student's numbers lined up by type, whatever tokenizer each used. Here the student has to predict the same tokens the teacher did. That is why this module's teacher and student come from one model family.
+
+**There is no answer key.** Accuracy needs a right answer to compare against. When many answers are right, you need other ways to score.
+
+## Two kinds of distillation, again
+
+The split from the first half of the course carries over.
+
+<div class="table-wrap">
+
+| | Learn from the teacher's text | Learn from the teacher's token probabilities |
+|---|---|---|
+| Earlier name | Black-box (Module 4) | White-box (Module 3) |
+| Often called | Sequence-level distillation | Token-level distillation |
+| The student sees | The title the teacher wrote | At every position, which next tokens the teacher considered and how strongly |
+| Needs | Any teacher, including an API | An open-weight teacher with the same tokenizer |
+| Covered in | Lesson 6.2 | Lessons 6.3 and 6.4 |
+
+</div>
+
+<PredictReveal
+  client:load
+  id="how-many-numbers"
+  prompt="A teacher writes a 10-token title. In sequence-level distillation the student learns from those 10 tokens. In token-level distillation, with a vocabulary of 150,000, how many teacher numbers lie behind that one title?"
+  options={["10", "About 1,500", "About 1,500,000"]}
+>
+  About 1,500,000: a full list of 150,000 probabilities at each of the 10 positions. Nearly all of them are almost zero, which is what makes it practical to keep only the top few. Lesson 6.3 shows how much that saves.
+</PredictReveal>
+
+## Scoring without an answer key
+
+Lesson 6.5 covers this properly. In short, this module uses three kinds of check together, because each one alone can be fooled:
+
+- **Rules a program can check.** Is the title within eight words? Is it empty?
+- **Closeness to the teacher.** How much do the student's words overlap with the teacher's title for the same message?
+- **A judge.** A model reads the message and the title and says whether the title is good.
+
+## The baseline changes too
+
+In Module 2 the baseline was a student trained on human labels. Nobody has written titles for these messages, so there are no human labels at all. The baseline here is the small student **with no training**, given the same instructions as the teacher. Distillation has to beat that.
+
+<ReviewCard
+  client:load
+  fromModule="White-box distillation"
+  question="When do a teacher and a student need the same tokenizer?"
+>
+  When the probabilities being matched are over next tokens, as in this module. When they are over a fixed list of types, as in Module 3, the tokenizers can differ.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="06-generative/01-from-choosing-to-writing"
+  id="why-no-accuracy"
+  question="Why can't this module score titles with accuracy, the way earlier modules scored types?"
+  options={[
+    {
+      text: "Because generated text cannot be compared by a program",
+      feedback: "Programs compare text all the time. The difficulty is deciding what to compare against.",
+    },
+    {
+      text: "Because many different titles are good, so there is no single right answer to match",
+      correct: true,
+      feedback: "Accuracy needs one correct answer per message. A good title can be worded many ways, so scoring has to use rules, overlap and judgment instead.",
+    },
+    {
+      text: "Because the student is too small to be scored fairly",
+      feedback: "Model size has nothing to do with how a task is scored.",
+    },
+  ]}
+/>

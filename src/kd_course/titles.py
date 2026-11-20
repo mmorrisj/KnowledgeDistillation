@@ -88,3 +88,40 @@ def judge_titles(teacher: Teacher, messages: list[str], titles: list[str]) -> li
     for index, reply in zip(to_ask, replies, strict=True):
         verdicts[index] = parse_verdict(reply)
     return verdicts
+
+
+def usable_for_training(message: str, title: str) -> bool:
+    """A title is kept as a training example only if it passes every rule a program can check."""
+    from kd_course.text_metrics import within_word_limit
+
+    def plain(text: str) -> str:
+        return re.sub(r"[^a-z0-9 ]", "", text.lower()).strip()
+
+    return within_word_limit(title, MAX_TITLE_WORDS) and plain(title) != plain(message)
+
+
+def score_titles(titles: list[str], references: list[str]) -> dict[str, float]:
+    """Share of titles within the word limit, and average word overlap with the reference titles."""
+    from kd_course.text_metrics import mean, token_f1, within_word_limit
+
+    if len(titles) != len(references):
+        raise ValueError(
+            f"Titles and references differ in length: {len(titles)} and {len(references)}."
+        )
+    return {
+        "n": len(titles),
+        "within_limit": mean(within_word_limit(title, MAX_TITLE_WORDS) for title in titles),
+        "overlap_with_teacher": mean(
+            token_f1(title, reference) for title, reference in zip(titles, references, strict=True)
+        ),
+    }
+
+
+def acceptance(verdicts: list[bool | None]) -> dict[str, float]:
+    """Share of titles the judge accepted. A verdict that is neither yes nor no does not count."""
+    from kd_course.text_metrics import mean
+
+    return {
+        "accepted": mean(verdict is True for verdict in verdicts),
+        "unanswered": mean(verdict is None for verdict in verdicts),
+    }

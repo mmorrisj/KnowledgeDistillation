@@ -196,3 +196,87 @@ def test_lora_lab_flow(tiny_lm, tmp_path):
         tmp_path,
     )
     assert "generative_lora" in load_results(tmp_path)
+
+
+def test_generative_lab_flow(tiny_lm, tmp_path):
+    import copy
+
+    from kd_course.generative import generate_replies, train_text_pairs
+    from kd_course.teachers import LocalTeacher
+    from kd_course.titles import (
+        acceptance,
+        clean_title,
+        generate_titles,
+        judge_titles,
+        score_titles,
+        student_prompt,
+        usable_for_training,
+    )
+    from kd_course.token_kd import topk_targets, train_token_kd
+
+    base, tokenizer = tiny_lm
+    messages = ["the cat sat on the mat", "a dog ran to the floor", "the cat ran", "a dog sat"]
+
+    class ScriptedTeacher:
+        """Writes a fixed title per message, and says yes to titles containing 'cat' or 'dog'."""
+
+        def complete(self, prompts, max_new_tokens=16):
+            replies = []
+            for prompt in prompts:
+                if "Is this a good title" in prompt:
+                    title = prompt.split("Title:")[1]
+                    replies.append("yes" if "cat" in title or "dog" in title else "no")
+                else:
+                    replies.append(
+                        "the cat sat"
+                        if "cat" in prompt.split("Customer message:")[1]
+                        else "a dog ran"
+                    )
+            return replies
+
+    teacher = ScriptedTeacher()
+    titles = generate_titles(teacher, messages)
+    keep = [
+        i
+        for i, (m, t) in enumerate(zip(messages, titles, strict=True))
+        if usable_for_training(m, t)
+    ]
+    assert keep == [0, 1, 2, 3]
+    train_messages = [messages[i] for i in keep]
+    train_titles = [titles[i] for i in keep]
+    prompts = [student_prompt(m) for m in train_messages]
+
+    # Teacher token records (the tiny model stands in for the teacher's weights).
+    records = topk_targets(base, tokenizer, prompts, train_titles, k=5, answer_prefix="")
+
+    # In the lab the untrained student gets the teacher's full instructions. The tiny test model
+    # can only read 64 tokens, so here it gets the short prompt, through the same wrapper.
+    replies = LocalTeacher(base, tokenizer).complete(prompts, max_new_tokens=8)
+    untrained = [clean_title(reply) for reply in replies]
+
+    sequence_student = copy.deepcopy(base)
+    train_text_pairs(
+        sequence_student, tokenizer, prompts, train_titles, epochs=1, batch_size=2, answer_prefix=""
+    )
+    sequence_titles = [
+        clean_title(r) for r in generate_replies(sequence_student, tokenizer, prompts, 8)
+    ]
+
+    token_student = copy.deepcopy(base)
+    train_token_kd(token_student, tokenizer, prompts, records, epochs=1, batch_size=2)
+    token_titles = [clean_title(r) for r in generate_replies(token_student, tokenizer, prompts, 8)]
+
+    folder = tmp_path / "generation"
+    for name, outputs in {
+        "untrained": untrained,
+        "sequence": sequence_titles,
+        "token": token_titles,
+    }.items():
+        scores = score_titles(outputs, titles)
+        scores.update(acceptance(judge_titles(teacher, messages, outputs)))
+        save_result(name, scores, outputs, folder)
+    saved = load_results(folder)
+    assert set(saved) == {"untrained", "sequence", "token"}
+    assert all(0 <= r["metrics"]["accepted"] <= 1 for r in saved.values())
+    # Generation results live in their own folder and do not disturb the classification table.
+    assert load_results(tmp_path) == {}

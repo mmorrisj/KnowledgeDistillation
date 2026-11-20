@@ -1,0 +1,95 @@
+---
+title: "Lab: distilling a writer"
+order: 6
+minutes: 10
+objectives:
+  - Distill a title-writing teacher into a small student by sequence-level and token-level distillation
+  - Score the students with rules, overlap and a judge
+  - Decide whether token-level distillation earned its extra cost on this task
+lab:
+  title: Distilling a writer
+  path: labs/06_generative/01_generative.ipynb
+  minutes: 50
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+This lab distills the 7B teacher's title writing into the 0.5B student, two ways. It does not need results from earlier labs.
+
+## What the lab does
+
+1. **The teacher writes titles** for 2,000 pool messages, and for 300 test messages it will not train on.
+2. **Titles that break the rules are dropped** from the training set.
+3. **The teacher's top-20 tokens are recorded** at every position of every training title.
+4. **Baseline:** the untrained student writes titles for the test messages, given the teacher's full instructions.
+5. **Sequence-level student:** trained on the teacher's titles.
+6. **Token-level student:** trained on the teacher's token probabilities as well.
+7. **Scoring:** rules and overlap for every model, then the teacher is loaded again to judge them all.
+
+The students here are fully fine-tuned, because the 0.5B model fits comfortably. Everything in the lab works unchanged with the LoRA adapters from Module 5 if you move to a larger student.
+
+## Before you look at the results
+
+Predict and write down:
+
+- How often will the untrained student stay within eight words? How often will the trained ones?
+- Will token-level distillation beat sequence-level? By enough to see?
+- What share of the teacher's own titles will the judge accept?
+
+## Reading the results
+
+The lab prints one table with four rows: the teacher, the untrained student, and the two distilled students.
+
+- **Within the word limit.** Expect the trained students to do at least as well as the teacher here, because rule-breaking titles were filtered out of their training data. This is lesson 6.2's point, measured.
+- **Overlap with the teacher.** The teacher's row is 100% by definition. A higher figure for a student means closer imitation, not necessarily better titles.
+- **Judge acceptance.** Remember the judge is the teacher. Read the teacher's own acceptance rate as the ceiling for this judge, and pay most attention to the gaps between students.
+- **The paired comparisons.** One tells you whether training beat the untrained baseline. The other tells you whether token-level beat sequence-level.
+
+A small or unclear gain from token-level over sequence-level is a common result on a short, narrow task, where the teacher's titles already carry most of what there is to learn. It mirrors the top-answers against probabilities comparison from Lab 3. The token-level signal tends to matter more as outputs get longer and the student gets smaller.
+
+Finally, the lab prints ten messages with all four titles side by side. Read them before trusting the table.
+
+## If something goes wrong
+
+<div class="table-wrap">
+
+| What you see | Likely cause | What to do |
+|---|---|---|
+| Out of memory when the teacher loads the second time | A student is still on the GPU | Run the cell that frees the student, then load the teacher again |
+| The untrained student's titles are long paragraphs | Expected: an untrained small model follows instructions loosely | Nothing. This is the baseline's weakness, and the table will show it |
+| Many training titles dropped by the rules | The teacher is ignoring the word limit | Print a few raw replies; consider tightening the teacher's prompt |
+| The judge's verdicts are mostly "no answer" | The judge is not replying with yes or no | Print a few raw judge replies and compare with the question it was asked |
+| Token-level training loss is not falling | The learning rate was changed | Use about 2e-5 for full fine-tuning |
+
+</div>
+
+<ReviewCard
+  client:load
+  fromModule="Scoring generated text"
+  question="Why is the gap between two students more trustworthy than either one's judge score?"
+>
+  The judge has preferences of its own, which shift every score. Both students are shifted by the same bias, so much of it cancels when you compare them.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="06-generative/06-lab-generative"
+  id="beats-teacher-on-rules"
+  question="The sequence-level student stays within the word limit more often than the teacher that taught it. How is that possible?"
+  options={[
+    {
+      text: "It is a scoring error; a student cannot beat its teacher",
+      feedback: "On a property you can check by rule and filter on, it can, and by design.",
+    },
+    {
+      text: "The titles that broke the limit were removed before training, so the student never learned to write one",
+      correct: true,
+      feedback: "The student learned from a cleaned version of the teacher's work. Wherever you can check a requirement by program, you can do this.",
+    },
+    {
+      text: "Smaller models naturally write shorter text",
+      feedback: "The untrained small student shows otherwise: without training it tends to ramble past the limit.",
+    },
+  ]}
+/>

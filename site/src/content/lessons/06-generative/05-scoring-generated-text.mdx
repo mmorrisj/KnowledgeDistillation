@@ -1,0 +1,132 @@
+---
+title: Scoring generated text
+order: 5
+minutes: 12
+objectives:
+  - Score generated text with rules, overlap and a judge, and say what each can miss
+  - Use a model as a judge without trusting it blindly
+  - Report several measures together and check them against your own reading
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import SortDrill from "../../../components/SortDrill.tsx";
+
+Module 2 was built on one idea: measure before you believe. For text there is no single measure to rely on. This lesson gives you three, each with a known blind spot, to be used together.
+
+## Rules a program can check
+
+Some requirements are exact. A title has at most eight words. It is not empty. It is not the customer's message copied back. A program checks these on every output, with no judgment involved.
+
+**What rules miss:** whether the title is any good. "Customer has a question" passes every rule.
+
+## Overlap with a reference
+
+If you have a reference text for each input, you can count shared words. The lab uses a simple version: the share of words in common between the student's title and the teacher's title for the same message, combining precision and recall the way F1 did in Module 2.
+
+Here the reference is the teacher's output, so this measures how closely the student imitates its teacher. Call it what it is: <mark>fidelity</mark> to the teacher.
+
+**What overlap misses:** two titles can say the same thing in different words and score low. Two titles can share most of their words and mean different things: "card not received" and "card received, not working". And if the teacher's title is poor, matching it is not a virtue.
+
+## A judge
+
+A capable model reads the message and the title and answers a narrow question: is this a good title, yes or no? This is often called an <mark>LLM judge</mark>. It can recognize a correct title in unfamiliar words, which overlap cannot.
+
+<PredictReveal
+  client:load
+  id="judge-bias"
+  prompt="The teacher model is used as the judge. It judges its own titles and the student's titles. Whose titles is it likely to favor, other things being equal?"
+  options={["The student's, because they are simpler", "Its own, or those written in its own style", "Neither: a model cannot recognize its own writing"]}
+>
+  Its own, or those in its own style. Judges tend to prefer text that resembles what they would have written. A student distilled from the judge writes in the judge's style, so it benefits too. This is why a judge's score is a rough guide, and why the gap between two students is more trustworthy than either score alone: both are helped by the same bias.
+</PredictReveal>
+
+**What a judge misses, or gets wrong:**
+
+- It has preferences of its own, as above.
+- It can be swayed by confident wording.
+- It makes mistakes, and it makes them consistently, so more data does not fix them.
+
+Three habits keep a judge useful. Ask a narrow yes-or-no question, not for a score out of ten. Check it against your own judgment on a sample before trusting it. And where you can, use a different model as the judge from the one that wrote the text.
+
+## Which check catches it?
+
+<SortDrill
+  client:load
+  lessonId="06-generative/05-scoring-generated-text"
+  id="which-check"
+  categories={["Rule", "Overlap", "Judge"]}
+  items={[
+    {
+      text: "The title runs to fourteen words.",
+      answer: "Rule",
+      why: "A word limit is exact. A program checks it on every output.",
+    },
+    {
+      text: "The title is correct, but worded completely differently from the teacher's.",
+      answer: "Judge",
+      why: "Overlap would score this low. A judge can recognize the same meaning in other words.",
+    },
+    {
+      text: "You want to know how closely the student imitates the teacher's wording.",
+      answer: "Overlap",
+      why: "Shared words with the teacher's output is a direct measure of imitation.",
+    },
+    {
+      text: "The title names a different problem from the one in the message, within the word limit.",
+      answer: "Judge",
+      why: "Rules pass it. Deciding whether the title fits the message takes reading both.",
+    },
+    {
+      text: "The title is empty.",
+      answer: "Rule",
+      why: "No judgment needed. The lab rejects empty titles without asking the judge.",
+    },
+  ]}
+/>
+
+## Read some yourself
+
+None of the three replaces looking. Before believing any table, read thirty outputs next to their messages. You will often spot a problem none of the measures was built to catch, such as every title starting with the same word. Then check whether the judge agrees with you on those thirty. If it does not, fix the judge's question before using its numbers.
+
+## Reporting
+
+Report all three, with the same care as in Module 2:
+
+- the share of titles that pass the rules;
+- average overlap with the teacher;
+- the share the judge accepts, with a 95% interval, and which model judged;
+- a paired comparison when two students are scored on the same messages.
+
+When the three agree, you can be fairly confident. When they disagree, that is where to read more outputs.
+
+<ReviewCard
+  client:load
+  fromModule="Baselines and evaluation"
+  question="Two models are scored on the same test messages. What comparison tells you whether one is really better?"
+>
+  A paired comparison: resample the messages and score both models on the same resample. The difference is real if its 95% interval does not include zero. It works for a judge's yes-or-no verdicts exactly as it did for accuracy.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="06-generative/05-scoring-generated-text"
+  id="high-overlap"
+  question="A student's titles overlap heavily with the teacher's, but the judge accepts only half of them. What should you do first?"
+  options={[
+    {
+      text: "Trust the overlap score; it is the more objective measure",
+      feedback: "Overlap measures imitation. If the teacher's own titles are weak, imitating them closely is not success.",
+    },
+    {
+      text: "Read a sample of messages with both titles, and check the judge against your own reading",
+      correct: true,
+      feedback: "The two measures disagree, so look. Either the teacher's titles are poor, or the judge is asking the wrong question. Reading thirty examples usually tells you which.",
+    },
+    {
+      text: "Average the two numbers",
+      feedback: "They measure different things. An average hides the disagreement that needs explaining.",
+    },
+  ]}
+/>

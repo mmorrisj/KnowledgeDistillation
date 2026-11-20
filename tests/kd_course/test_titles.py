@@ -109,3 +109,36 @@ def test_judge_titles_rejects_an_empty_title_without_asking():
 def test_judge_titles_rejects_mismatched_lengths():
     with pytest.raises(ValueError, match="length"):
         judge_titles(FakeTeacher([]), ["m1"], [])
+
+
+def test_usable_for_training_applies_every_rule():
+    from kd_course.titles import usable_for_training
+
+    assert usable_for_training("Where is my card?", "New card not received")
+    assert not usable_for_training("Where is my card?", "")
+    assert not usable_for_training(
+        "Where is my card?", "one two three four five six seven eight nine"
+    )
+    assert not usable_for_training(
+        "Where is my card?", "where is my card"
+    )  # the message copied back
+
+
+def test_score_titles_reports_rule_rate_and_overlap():
+    from kd_course.titles import score_titles
+
+    scores = score_titles(
+        titles=["Card not received", "", "one two three four five six seven eight nine"],
+        references=["Card not received", "Charged twice", "Exchange rate question"],
+    )
+    assert scores["n"] == 3
+    assert scores["within_limit"] == pytest.approx(1 / 3)
+    assert scores["overlap_with_teacher"] == pytest.approx(1 / 3)
+
+
+def test_acceptance_counts_only_yes_and_reports_unanswered():
+    from kd_course.titles import acceptance
+
+    result = acceptance([True, False, None, True])
+    assert result["accepted"] == 0.5
+    assert result["unanswered"] == 0.25
