@@ -37,3 +37,12 @@ def sweep_thresholds(
         cascade_stats(confidences, student_correct, teacher_correct, threshold)
         for threshold in thresholds
     ]
+
+
+def correct_flags(predictions: Sequence[int | None], truth: Sequence[int]) -> list[bool]:
+    """For each prediction, whether it matches the true label. A missing prediction is wrong."""
+    if len(predictions) != len(truth):
+        raise ValueError(
+            f"Predictions and labels differ in length: {len(predictions)} and {len(truth)}."
+        )
+    return [prediction == label for prediction, label in zip(predictions, truth, strict=True)]

@@ -1,0 +1,87 @@
+---
+title: The teacher as a fallback
+order: 5
+minutes: 10
+objectives:
+  - Describe a cascade that sends only uncertain messages to the teacher
+  - Choose a confidence threshold from measured data
+  - List what to watch once a student is in production
+---
+
+import CascadeExplorer from "../../../components/CascadeExplorer.tsx";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+So far the choice has been student or teacher. There is a third option that often beats both: use the student for most messages and the teacher for the ones the student is unsure about.
+
+## The cascade
+
+Every message goes to the student first. The student returns a label and a confidence. If the confidence is above a threshold, its answer is used. If not, the message is sent on to the teacher.
+
+This works because the student's mistakes are not spread evenly. They cluster among the answers it was least sure of. Sending just those to the teacher fixes many of the mistakes while paying the teacher's price on a small share of the traffic.
+
+<CascadeExplorer client:load />
+
+Move the threshold up from zero. Accuracy climbs quickly at first, because the first messages handed over are the ones the student was most likely to get wrong. Further up, each extra point of accuracy costs more teacher calls than the last.
+
+## Choosing the threshold
+
+<PredictReveal
+  client:load
+  id="threshold-data"
+  prompt="You need to pick the confidence threshold for a cascade. Which data do you choose it on?"
+  options={["The test set, because it is the most realistic", "The validation set", "No data: 0.5 is the natural choice"]}
+>
+  The validation set. A threshold is a setting like any other, so it is chosen on validation data and the finished cascade is scored once on the test set. There is nothing natural about 0.5; the right value depends on how the student's confidence relates to its accuracy, and on what a teacher call costs you.
+</PredictReveal>
+
+Pick it from a table: for each candidate threshold, the share of messages sent to the teacher and the accuracy of the whole system. Then choose the row that meets your accuracy target at the lowest share, or the best accuracy your budget allows. The lab builds this table from your own results.
+
+## What it costs to run
+
+A cascade needs the teacher to stay available, so the gains of self-hosting are partial: data still leaves your systems for the messages sent on, and you still depend on the teacher's provider. In exchange you get most of the teacher's accuracy at a fraction of its bill. For many products that is the right place to end up.
+
+## The messages sent on are valuable
+
+Every message the student was unsure about, together with the teacher's answer, is a new training example aimed at exactly what the student finds hard. Collect them. Retraining on them from time to time lets the student handle more by itself, and the share sent to the teacher falls. A cascade is also a way of improving the student while it works.
+
+## Once it is running
+
+A distilled student is a snapshot of one task at one time. Three things are worth watching.
+
+- **The share sent to the teacher.** If it creeps up, the student is seeing messages unlike its training data. This is the earliest warning you get.
+- **Agreement on a sample.** Send a small random sample of all traffic to the teacher as well, and track how often the two agree. It is a running estimate of the student's accuracy, with no human labelling.
+- **The labels themselves.** A new product or policy brings new kinds of message. A student that only knows the old types will file them confidently under the wrong one. No confidence threshold catches that; people reading samples do.
+
+When any of these moves, the response is the course over again in miniature: collect recent messages, have the teacher label them, retrain, and measure against the old student before switching.
+
+<ReviewCard
+  client:load
+  fromModule="Serving with FastAPI"
+  question="What does the confidence returned by the service mean, and what does it not mean?"
+>
+  It is the probability the student gives its chosen label. It is not a guarantee, since a model can be confidently wrong. But low-confidence answers are wrong much more often, which is what a cascade relies on.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="07-serve/05-teacher-as-fallback"
+  id="creeping-share"
+  question="Over three months, the share of messages your cascade sends to the teacher rises from 12% to 30%. Nothing in your code changed. What is the most likely explanation?"
+  options={[
+    {
+      text: "The student's weights have degraded over time",
+      feedback: "Weights do not change unless you retrain. The model is exactly what it was.",
+    },
+    {
+      text: "The messages have changed, and more of them are unlike what the student was trained on",
+      correct: true,
+      feedback: "The student is the same; the world moved. Collect recent messages with the teacher's answers and retrain.",
+    },
+    {
+      text: "The teacher has become more accurate",
+      feedback: "The teacher's accuracy does not affect which messages the student is unsure about.",
+    },
+  ]}
+/>

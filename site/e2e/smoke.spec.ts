@@ -105,6 +105,12 @@ const LESSONS = [
   ["06-generative/04-two-directions", "Two directions of matching"],
   ["06-generative/05-scoring-generated-text", "Scoring generated text"],
   ["06-generative/06-lab-generative", "Lab: distilling a writer"],
+  ["07-serve/01-from-model-to-service", "From a trained model to a service"],
+  ["07-serve/02-fewer-bits", "Fewer bits per weight"],
+  ["07-serve/03-serving-with-fastapi", "Serving with FastAPI"],
+  ["07-serve/04-speed-and-cost", "Speed and cost"],
+  ["07-serve/05-teacher-as-fallback", "The teacher as a fallback"],
+  ["07-serve/06-lab-serve", "Lab: serve your student"],
 ] as const;
 
 for (const [slug, title] of LESSONS) {
@@ -223,4 +229,20 @@ test("the KL explorer describes a student on one peak", async ({ page }) => {
   await page.getByRole("slider", { name: "Student position" }).fill("-2");
   await page.getByRole("slider", { name: "Student width" }).fill("0.7");
   await expect(page.getByRole("status").filter({ hasText: "Forward KL" })).toContainText("sits on one peak");
+});
+
+test("the quantization explorer reports allowed values", async ({ page }) => {
+  await page.goto("/modules/07-serve/02-fewer-bits/");
+  await hydrated(page);
+  const status = page.getByRole("status").filter({ hasText: "allowed values" });
+  await expect(status).toContainText("256 allowed values");
+  await page.getByRole("slider", { name: "Bits per weight" }).fill("4");
+  await expect(status).toContainText("16 allowed values");
+});
+
+test("the cascade explorer sends nothing to the teacher at threshold 0", async ({ page }) => {
+  await page.goto("/modules/07-serve/05-teacher-as-fallback/");
+  await hydrated(page);
+  await page.getByRole("slider", { name: "Confidence threshold" }).fill("0");
+  await expect(page.getByTestId("sent")).toHaveText("0%");
 });

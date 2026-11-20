@@ -1,0 +1,109 @@
+---
+title: Speed and cost
+order: 4
+minutes: 12
+objectives:
+  - Tell latency from throughput and say which one a given use cares about
+  - Explain how batching trades one for the other
+  - Turn a measured throughput into a cost per thousand requests
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+"Fast" means two different things for a service, and they pull against each other.
+
+## Latency and throughput
+
+- <mark>Latency</mark> is how long one request takes, from sending it to getting the answer. A person waiting for a reply cares about this.
+- <mark>Throughput</mark> is how many messages the service handles per second. A job processing a million messages overnight cares about this.
+
+Latency is reported as percentiles, not an average. The **p50** is the time half of requests beat. The **p95** is the time 95% of them beat. The slow tail is what users notice and what an average hides: a service averaging 20 milliseconds can still make one caller in twenty wait a second.
+
+## Batching
+
+A GPU processes 32 messages together in little more time than it takes to process one. Sending messages in batches therefore raises throughput a great deal.
+
+<PredictReveal
+  client:load
+  id="batching"
+  prompt="One message takes 6 ms on its own. A batch of 32 takes 24 ms in total. A message that arrives alone is made to wait until 31 others have joined it. What has happened to throughput, and to that message's latency?"
+  options={["Both got better", "Throughput rose about eight times; that message's latency got worse", "Both got worse"]}
+>
+  Throughput rose about eight times: 32 messages in 24 ms against 4 in the same time. But the message that had to wait for a full batch now takes 24 ms plus however long the waiting took, in place of 6. Batching buys throughput with latency. Which way to lean depends on who is calling.
+</PredictReveal>
+
+<div class="table-wrap">
+
+| Who is calling | Cares about | Lean toward |
+|---|---|---|
+| A person in a chat window | Latency, especially p95 | Small batches, answer at once |
+| A nightly job over stored messages | Throughput, and so cost | Large batches |
+| Both, on the same service | Both | Let callers choose their batch size; that is what the course's service does |
+
+</div>
+
+## From throughput to cost
+
+A self-hosted model costs the price of its machine by the hour, whatever it is doing. Its cost per message is that hourly price divided by how many messages it handled in the hour.
+
+<WorkedExample
+  title="Measuring a service"
+  notes={[
+    "Send the requests, a few at a time, and time each one.",
+    "Median and 95th percentile, in milliseconds.",
+    "Cost per thousand messages, from the machine's hourly price and the measured throughput. The price here is an example.",
+  ]}
+>
+
+```python
+from kd_course.serving.loadtest import cost_per_1k, run_load_test, summarize_latencies
+
+result = run_load_test(call_service, batches, concurrency=4)     # 1
+print(summarize_latencies(result.latencies))                     # 2
+print(cost_per_1k(1.62, result.items_per_second))                # 3
+```
+
+</WorkedExample>
+
+Two cautions about that cost figure.
+
+**It assumes the machine is busy.** A machine that could handle 2,000 messages a second and receives 20 costs a hundred times more per message than the calculation says. For a self-hosted model the real cost depends on how full you keep it. This is the break-even point from lesson 1.1.
+
+**It leaves out people.** Someone has to keep the service running, retrain the student when the task shifts, and answer for it when it is wrong. An API bundles that into its price.
+
+## Comparing with the teacher fairly
+
+To compare the student with the teacher, measure both the same way: the same messages, the same hardware, each at a batch size that suits it. Report accuracy next to cost, never cost alone. A model that is ten times cheaper and ten points worse may or may not be a good trade, and that judgment belongs to whoever owns the product.
+
+<ReviewCard
+  client:load
+  fromModule="Foundations"
+  question="Below the break-even volume, which is cheaper: the API teacher or a self-hosted student?"
+>
+  The API teacher. Below break-even the student's machine sits mostly idle, and you pay for it anyway.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="07-serve/04-speed-and-cost"
+  id="p95"
+  question="A service has a median latency of 15 ms and a p95 of 900 ms. What does that tell you?"
+  options={[
+    {
+      text: "It is fast: a typical request takes 15 ms",
+      feedback: "A typical request does. One in twenty takes sixty times longer, and those are the ones people complain about.",
+    },
+    {
+      text: "Most requests are quick, but one in twenty waits close to a second, and that needs investigating",
+      correct: true,
+      feedback: "A large gap between p50 and p95 usually means requests are queuing behind something: a big batch, a busy model, or a pause elsewhere.",
+    },
+    {
+      text: "The measurement is wrong, because p95 cannot be so far from the median",
+      feedback: "It can, and often is. That gap is exactly what percentiles are for.",
+    },
+  ]}
+/>

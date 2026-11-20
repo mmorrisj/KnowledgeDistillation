@@ -89,3 +89,16 @@ def test_sweep_returns_one_row_per_threshold_in_order():
     rows = sweep_thresholds(CONF, STUDENT, TEACHER, [0.0, 0.58, 1.01])
     assert [row["threshold"] for row in rows] == [0.0, 0.58, 1.01]
     assert rows[1]["accuracy"] == 1.0
+
+
+def test_correct_flags_compares_predictions_with_the_truth():
+    from kd_course.serving.cascade import correct_flags
+
+    assert correct_flags([1, 0, None, 2], [1, 1, 0, 2]) == [True, False, False, True]
+
+
+def test_correct_flags_rejects_mismatched_lengths():
+    from kd_course.serving.cascade import correct_flags
+
+    with pytest.raises(ValueError, match="length"):
+        correct_flags([1], [1, 2])

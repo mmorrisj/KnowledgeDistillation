@@ -79,6 +79,21 @@ export KD_COURSE_API_MODEL=model-name
 Check the provider's terms before training on its outputs (lesson 1.5), and
 never commit the key.
 
+## Serving a student (Module 7)
+
+Lab 7 saves a student to `results/students/classifier` and asks you to start a
+small web service for it in a terminal:
+
+```bash
+uv run --group labs kd-student-serve
+```
+
+Settings, all optional: `KD_STUDENT_DIR` (folder holding the saved student),
+`KD_STUDENT_DEVICE` (`cuda` or `cpu`), `KD_STUDENT_QUANTIZE=1` (serve the 8-bit
+version on the CPU), `HOST` (default `127.0.0.1`) and `PORT` (default `8100`).
+The service has no authentication; keep it on `127.0.0.1` unless you put it
+behind something that does.
+
 ## Results
 
 Labs save scores and predictions to a `results` folder at the top of the repo
@@ -95,5 +110,6 @@ that folder. It is not committed to git.
 | 4. Black-box distillation | `04_black_box/01_black_box.ipynb` | about 45 min; needs the Module 2 results |
 | 5. LoRA and QLoRA | `05_lora/01_lora.ipynb` | about 40 min; needs the Module 2 and 3 results |
 | 6. Distilling generative models | `06_generative/01_generative.ipynb` | about 50 min; stands alone |
+| 7. Compress and serve | `07_serve/01_serve.ipynb` | about 45 min; needs the Module 2 and 3 results |
 
 Clear all outputs before committing a notebook.
