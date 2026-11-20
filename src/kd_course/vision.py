@@ -380,3 +380,35 @@ def train_image_classifier(
         model.load_state_dict(best_state, strict=False)
     model.eval()
     return trained
+
+
+def zero_shot_or_load(
+    path: str | Path,
+    data: ImageSet,
+    model: Any,
+    image_processor: Any,
+    tokenizer: Any,
+    label_names: list[str],
+    template: str = PET_TEMPLATE,
+    progress_every: int = 0,
+) -> list[list[float]]:
+    """Score the images with the teacher and save the result, or read it back if saved before.
+
+    Saved scores are tagged with the image ids and refuse to load for a different set.
+    """
+    from kd_course.label_scoring import load_scores, save_scores
+
+    path = Path(path)
+    if path.is_file():
+        return load_scores(path, data.ids)
+    scores = zero_shot_scores(
+        model,
+        image_processor,
+        tokenizer,
+        data.images,
+        label_names,
+        template,
+        progress_every=progress_every,
+    )
+    save_scores(path, data.ids, scores)
+    return scores

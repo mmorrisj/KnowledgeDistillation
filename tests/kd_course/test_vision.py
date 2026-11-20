@@ -329,3 +329,27 @@ def test_attention_targets_error_names_the_way_out():
 
     with pytest.raises(ValueError, match="lora_targets"):
         attention_targets(torch.nn.Linear(2, 2))
+
+
+def test_zero_shot_or_load_scores_once_then_reads_the_file(tiny_clip, tmp_path):
+    from kd_course.vision import zero_shot_or_load
+
+    model, processor, tokenizer = tiny_clip
+    data = toy_set(2)
+    path = tmp_path / "teacher_scores" / "pool.json"
+    first = zero_shot_or_load(path, data, model, processor, tokenizer, ["red_thing", "blue_thing"])
+    assert path.is_file()
+    # With no model, the second call can only succeed by reading the saved file.
+    assert zero_shot_or_load(path, data, None, None, None, ["red_thing", "blue_thing"]) == first
+
+
+def test_zero_shot_or_load_refuses_scores_saved_for_other_images(tiny_clip, tmp_path):
+    from kd_course.vision import zero_shot_or_load
+
+    model, processor, tokenizer = tiny_clip
+    path = tmp_path / "pool.json"
+    zero_shot_or_load(path, toy_set(2), model, processor, tokenizer, ["red_thing", "blue_thing"])
+    with pytest.raises(ValueError, match="different"):
+        zero_shot_or_load(
+            path, toy_set(2, offset=50), None, None, None, ["red_thing", "blue_thing"]
+        )
