@@ -742,3 +742,25 @@
 .quant-line i.own {
   background: var(--accent);
 }
+
+/* Patch explorer */
+.patch-picture {
+  width: min(100%, 16rem);
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  /* A stand-in for a photo: soft shapes in the theme's own colors. */
+  background:
+    radial-gradient(circle at 34% 40%, var(--hi) 0 22%, transparent 23%),
+    radial-gradient(circle at 66% 40%, var(--hi) 0 22%, transparent 23%),
+    radial-gradient(ellipse at 50% 68%, var(--accent) 0 30%, transparent 31%), var(--soft);
+}
+.patch-grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+}
+.patch-grid i {
+  border: 0.5px solid var(--ink);
+  opacity: 0.35;
+}

@@ -94,6 +94,10 @@ version on the CPU), `HOST` (default `127.0.0.1`) and `PORT` (default `8100`).
 The service has no authentication; keep it on `127.0.0.1` unless you put it
 behind something that does.
 
+Lab 8 uses the Oxford-IIIT Pet images (`timm/oxford-iiit-pet`). For a local
+copy, put its `train.parquet` and `test.parquet` in a folder named
+`oxford-iiit-pet` under the same `KD_COURSE_DATA_DIR`.
+
 ## Results
 
 Labs save scores and predictions to a `results` folder at the top of the repo
@@ -111,5 +115,6 @@ that folder. It is not committed to git.
 | 5. LoRA and QLoRA | `05_lora/01_lora.ipynb` | about 40 min; needs the Module 2 and 3 results |
 | 6. Distilling generative models | `06_generative/01_generative.ipynb` | about 50 min; stands alone |
 | 7. Compress and serve | `07_serve/01_serve.ipynb` | about 45 min; needs the Module 2 and 3 results |
+| 8. Distilling vision models | `08_vision/01_vision.ipynb` | about 40 min; stands alone; downloads about 800 MB of images |
 
 Clear all outputs before committing a notebook.

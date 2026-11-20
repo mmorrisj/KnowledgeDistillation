@@ -42,5 +42,9 @@ def tiny_lm():
         eos_token_id=1,
         pad_token_id=0,
     )
+    # Seeded, so every run starts from the same weights. Without this, tests that train the
+    # model depended on the luck of the starting point and failed now and then.
+    torch = pytest.importorskip("torch")
+    torch.manual_seed(0)
     model = transformers.GPT2LMHeadModel(config).eval()
     return model, tokenizer

@@ -111,6 +111,11 @@ const LESSONS = [
   ["07-serve/04-speed-and-cost", "Speed and cost"],
   ["07-serve/05-teacher-as-fallback", "The teacher as a fallback"],
   ["07-serve/06-lab-serve", "Lab: serve your student"],
+  ["08-vision/01-from-text-to-pixels", "From text to pixels"],
+  ["08-vision/02-a-teacher-that-reads-class-names", "A teacher that reads class names"],
+  ["08-vision/03-distilling-into-a-small-vision-model", "Distilling into a small vision model"],
+  ["08-vision/04-lora-for-vision", "LoRA for vision models"],
+  ["08-vision/05-lab-vision", "Lab: distilling a vision model"],
 ] as const;
 
 for (const [slug, title] of LESSONS) {
@@ -245,4 +250,13 @@ test("the cascade explorer sends nothing to the teacher at threshold 0", async (
   await hydrated(page);
   await page.getByRole("slider", { name: "Confidence threshold" }).fill("0");
   await expect(page.getByTestId("sent")).toHaveText("0%");
+});
+
+test("the patch explorer counts patches", async ({ page }) => {
+  await page.goto("/modules/08-vision/01-from-text-to-pixels/");
+  await hydrated(page);
+  const status = page.getByRole("status").filter({ hasText: "patches" });
+  await expect(status).toContainText("196 patches");
+  await page.getByRole("button", { name: "8 px" }).click();
+  await expect(status).toContainText("784 patches");
 });

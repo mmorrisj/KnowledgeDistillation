@@ -12,6 +12,7 @@ from kd_course.metrics import accuracy, gap_closed, paired_bootstrap, summarize 
 from kd_course.results import format_results, load_results, require_result, save_result  # noqa: E402
 
 from .test_classifier import TRAIN, tiny_encoder_dir  # noqa: E402, F401
+from .test_vision import tiny_clip, tiny_vit_dir  # noqa: E402, F401
 
 
 def test_white_box_lab_flow(tiny_lm, tiny_encoder_dir, tmp_path):  # noqa: F811
@@ -339,3 +340,104 @@ def test_serving_lab_flow(tiny_encoder_dir, tmp_path):  # noqa: F811
     assert rows[-1]["accuracy"] == 1.0 and rows[-1]["sent_to_teacher"] == 1.0
     chosen = next(row["threshold"] for row in rows if row["accuracy"] >= rows[-1]["accuracy"])
     assert cascade_stats(confidences, student_right, teacher_right, chosen)["accuracy"] == 1.0
+
+
+def test_vision_lab_flow(tiny_clip, tiny_vit_dir, tmp_path):  # noqa: F811
+    """Module 8 end to end on tiny models: score with the teacher, train three students, compare."""
+    pytest.importorskip("peft")
+    import transformers
+
+    from kd_course.label_scoring import top_labels
+    from kd_course.lora import count_parameters_by_kind
+    from kd_course.vision import (
+        make_image_splits,
+        predict_images,
+        to_pixels,
+        train_image_classifier,
+        zero_shot_or_load,
+    )
+
+    from .test_vision import toy_set
+
+    teacher, teacher_processor, teacher_tokenizer = tiny_clip
+    vit_dir = tiny_vit_dir
+
+    labels = ["red_thing", "blue_thing"]
+    splits = make_image_splits(
+        toy_set(16), toy_set(8, offset=200), labels_per_class=3, val_per_class=2, test_size=8
+    )
+    scores = {
+        name: zero_shot_or_load(
+            tmp_path / "teacher_scores" / f"{name}.json",
+            part,
+            teacher,
+            teacher_processor,
+            teacher_tokenizer,
+            labels,
+            template="a photo of a {}",
+        )
+        for name, part in (
+            ("test", splits.test),
+            ("gold_train", splits.gold_train),
+            ("pool", splits.pool),
+        )
+    }
+    teacher_pred = top_labels(scores["test"])
+    folder = tmp_path / "vision"
+    save_result(
+        "teacher_zero_shot",
+        summarize(splits.test.labels, teacher_pred, 2, n_resamples=50),
+        teacher_pred,
+        folder,
+    )
+
+    processor = transformers.AutoImageProcessor.from_pretrained(vit_dir)
+    gold, val = (
+        to_pixels(processor, splits.gold_train.images),
+        to_pixels(processor, splits.gold_val.images),
+    )
+    pool, test = to_pixels(processor, splits.pool.images), to_pixels(processor, splits.test.images)
+
+    common = {
+        "val_pixels": val,
+        "val_labels": splits.gold_val.labels,
+        "num_labels": 2,
+        "device": "cpu",
+    }
+    baseline = train_image_classifier(vit_dir, gold, splits.gold_train.labels, epochs=1, **common)
+
+    import torch
+
+    both = torch.cat([gold, pool])
+    mixed_labels = splits.gold_train.labels + [None] * len(splits.pool)
+    teacher_scores = scores["gold_train"] + scores["pool"]
+    distilled = train_image_classifier(
+        vit_dir, both, mixed_labels, teacher_log_probs=teacher_scores, epochs=1, **common
+    )
+    lora = train_image_classifier(
+        vit_dir,
+        both,
+        mixed_labels,
+        teacher_log_probs=teacher_scores,
+        epochs=1,
+        lora_rank=2,
+        **common,
+    )
+    assert count_parameters_by_kind(lora.model)["trainable_share"] < 1.0
+
+    for name, student in (
+        ("baseline", baseline),
+        ("distilled", distilled),
+        ("distilled_lora", lora),
+    ):
+        predictions = predict_images(student, test)
+        save_result(
+            name, summarize(splits.test.labels, predictions, 2, n_resamples=50), predictions, folder
+        )
+    assert set(load_results(folder)) == {
+        "teacher_zero_shot",
+        "baseline",
+        "distilled",
+        "distilled_lora",
+    }
+    assert "distilled_lora" in format_results(load_results(folder))

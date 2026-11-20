@@ -1,0 +1,104 @@
+---
+title: LoRA for vision models
+order: 4
+minutes: 10
+objectives:
+  - Attach LoRA adapters to a vision transformer
+  - Explain why a new output layer has to be trained in full alongside the adapters
+  - Decide when LoRA is worth using for a vision student
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+A vision transformer is built from the same blocks as a text transformer, so LoRA attaches to it the same way: thin trainable matrices beside the frozen attention weights. Two details differ, and both are worth knowing.
+
+## The output layer is new
+
+In Module 5 the generative student wrote its answer as text, using the output layer it already had. An image classifier is different. The pretrained model's output layer was built for whatever classes it was pretrained on. For 37 pet breeds you replace it with a fresh layer of 37 outputs, and that layer starts with random weights.
+
+<PredictReveal
+  client:load
+  id="frozen-head"
+  prompt="You attach LoRA adapters to the attention layers and freeze everything else, including the brand-new 37-way output layer. What happens when you train?"
+  options={["It works: the adapters learn everything needed", "It learns badly, because the random output layer can never change", "The adapters refuse to train"]}
+>
+  It learns badly. The adapters can reshape what the model passes upward, but the last step is still a random layer that nothing is allowed to fix. The new output layer has to be trained in full, alongside the adapters. It is small, so this costs almost nothing. The course code does this for you; if you set LoRA up yourself, it is the mistake to look for first.
+</PredictReveal>
+
+## Layer names differ between libraries
+
+LoRA is attached to layers by name, and vision models do not always use the names text models do. Even one model can have different layer names in different versions of a library. The course code looks the names up from the model you give it. If you configure LoRA by hand and get an error saying no layers were matched, print the model's layer names and use what you see.
+
+<WorkedExample
+  title="A LoRA run on a larger vision student"
+  notes={[
+    "A student about fifteen times larger than the small one, with 86 million weights.",
+    "Each model expects its own image size and color scaling, so images are prepared again with this model's processor.",
+    "Setting a rank switches LoRA on. The attention layers get adapters, the output layer trains in full, and everything else is frozen.",
+    "As in Module 5, LoRA wants a higher learning rate than full fine-tuning.",
+  ]}
+>
+
+```python
+from kd_course.vision import VISION_STUDENT_LARGE_ID, to_pixels, train_image_classifier
+
+large_processor = AutoImageProcessor.from_pretrained(VISION_STUDENT_LARGE_ID)   # 1
+large_pixels = to_pixels(large_processor, images)                               # 2
+
+student = train_image_classifier(
+    VISION_STUDENT_LARGE_ID, large_pixels, labels, large_val, val_labels,
+    num_labels=37, teacher_log_probs=teacher_scores,
+    lora_rank=16,                                                               # 3
+    learning_rate=3e-4)                                                         # 4
+```
+
+</WorkedExample>
+
+## When it is worth it
+
+The memory argument from lesson 5.1 is weaker here. Vision students of the sizes used for classification are small by language-model standards: 86 million weights can be fully fine-tuned on the lab's GPU with room to spare. LoRA is not needed to make this model fit.
+
+It still earns its place in three situations:
+
+- **Many tasks, one base model.** A few megabytes of adapter per task in place of a full copy each.
+- **Very little data.** Freezing most of the model limits how far a handful of examples can pull it, which can reduce overfitting.
+- **Much larger vision models.** The biggest image-and-text models have billions of weights, and there the memory argument returns in full.
+
+The lab runs LoRA on the larger student so that you can compare it with the fully fine-tuned small one. That comparison mixes two changes, a bigger model and a different way of training it, and the lab lesson says how to read it.
+
+## Beyond classification
+
+You will meet LoRA most often in vision in a setting this course does not cover: adapting image generators to a style or a subject. The mechanism is exactly what you learned in Module 5, attached to a different kind of model. Nothing about it will be unfamiliar.
+
+<ReviewCard
+  client:load
+  fromModule="LoRA and QLoRA"
+  question="Does LoRA make the model you run smaller?"
+>
+  No. It makes training cheaper and produces a small adapter. The model you run is the full base model plus the adapter.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="08-vision/04-lora-for-vision"
+  id="no-layers-matched"
+  question="You configure LoRA for a vision model by copying layer names from a text model, and get an error that no layers were matched. What do you do?"
+  options={[
+    {
+      text: "Raise the rank until it works",
+      feedback: "Rank has nothing to do with it. The adapters have nowhere to attach.",
+    },
+    {
+      text: "Print the model's own layer names and target the ones that hold its attention weights",
+      correct: true,
+      feedback: "LoRA attaches by name, and names differ between model families and library versions. Look them up from the model in front of you.",
+    },
+    {
+      text: "Conclude that vision models do not support LoRA",
+      feedback: "They do. The names in the configuration simply do not exist in this model.",
+    },
+  ]}
+/>
