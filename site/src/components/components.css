@@ -708,3 +708,37 @@
   stroke: var(--accent);
   stroke-width: 3;
 }
+
+/* Quantization explorer */
+.quant {
+  display: grid;
+  gap: var(--space-3);
+}
+.quant-row {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+  font-size: var(--step--1);
+  color: var(--muted);
+}
+.quant-line {
+  position: relative;
+  height: 1.6rem;
+  margin-inline: 0.5rem;
+  border-bottom: 2px solid var(--line);
+}
+.quant-line i {
+  position: absolute;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.75;
+  transition: left 0.2s ease;
+}
+.quant-line i.own {
+  background: var(--accent);
+}
