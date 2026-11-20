@@ -1,0 +1,88 @@
+---
+title: Measuring search quality
+order: 3
+minutes: 12
+objectives:
+  - Score search results when you have labels for what is relevant
+  - Compare a student with its teacher when you have no labels at all
+  - Set up a search test without leaking the queries into the collection
+---
+
+import NeighbourOverlapExplorer from "../../../components/NeighbourOverlapExplorer.tsx";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+A search returns a ranked list, not one answer. Scoring it needs a few new measures, and the same discipline as before.
+
+## When you know what is relevant
+
+To score search you need to know, for each query, which stored items count as good results. In this module the banking messages' types provide that: a result is <mark>relevant</mark> if it has the same type as the query.
+
+Two measures cover most needs.
+
+- **Precision at k.** Of the first k results, what share are relevant? With k set to 10, it tells you how clean the first screen of results is.
+- **Top-1 accuracy.** Is the very first result relevant? It matters when only one result is shown or used.
+
+Both are averaged over all the queries, and both get confidence intervals and paired comparisons exactly as accuracy did in Module 2. A paired comparison resamples the queries.
+
+A caution about the labels. Two messages of the same type are not always good search results for each other, and two of different types sometimes are. Type is a stand-in for relevance. It is good enough to compare models fairly, and it will understate how useful the results really are.
+
+## When you have no labels
+
+Most real collections have no relevance labels. There is still something you can measure, and it suits distillation exactly: how often does the student return the same results as the teacher?
+
+<NeighbourOverlapExplorer client:load />
+
+This is <mark>neighbour overlap</mark>: for each query, the share of the student's top k results that are also in the teacher's top k. It needs no labels, only the two models.
+
+<PredictReveal
+  client:load
+  id="overlap-meaning"
+  prompt="A student's results overlap 70% with its teacher's. Does that mean 30% of the student's results are wrong?"
+  options={["Yes: anything the teacher did not return is a mistake", "No: the student may have found different results that are just as relevant", "It means the student is 70% as accurate as the teacher"]}
+>
+  No. Overlap measures agreement with the teacher, and the teacher is not the truth. Where there are fifty good matches for a query, two models can each return ten good ones with few in common. Overlap is a measure of fidelity, like the word overlap in Module 6. Use it to track how distillation is going, and use labelled data, even a little, to say how good the results are.
+</PredictReveal>
+
+## Collection and queries must be separate
+
+Lesson 2.2 warned about test messages leaking into training. Search has its own version.
+
+- **Queries must not be in the collection.** A message that searches a collection containing itself will find itself first, with perfect similarity. Here the collection is the pool and the queries come from the test set, and the split already removed test messages from the pool.
+- **The student must not train on the queries.** It trains on the pool. The queries stay unseen.
+- **Each model searches its own index.** The teacher's results come from the collection embedded by the teacher, and the student's from the collection embedded by the student.
+
+## What to report
+
+For each model: precision at 10 and top-1 accuracy with intervals, on the same queries. For the student: its overlap with the teacher as well. Then the costs, from Module 7: how fast each embeds a query and how much space its collection takes. A search model is chosen on all of these together.
+
+<ReviewCard
+  client:load
+  fromModule="Distilling generative models"
+  question="Word overlap with the teacher's title was called fidelity, not quality. Why?"
+>
+  Because it measures how closely the student imitates the teacher, and the teacher is not always right. A student can differ from the teacher and still be correct. Neighbour overlap has the same limit.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="09-embeddings/03-measuring-search-quality"
+  id="self-match"
+  question="You test search by using messages from the collection as queries, and every model scores a perfect top-1. What went wrong?"
+  options={[
+    {
+      text: "Nothing: the models are simply very good",
+      feedback: "Every model found the query itself, which is in the collection with identical text.",
+    },
+    {
+      text: "Each query found itself in the collection, so the score says nothing about search",
+      correct: true,
+      feedback: "Queries must come from outside the collection, or the query's own entry must be excluded from its results.",
+    },
+    {
+      text: "The collection is too small",
+      feedback: "Size is not the issue. Any collection containing the query will return it first.",
+    },
+  ]}
+/>

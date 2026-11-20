@@ -1,0 +1,139 @@
+---
+title: Vectors in Postgres with pgvector
+order: 4
+minutes: 14
+objectives:
+  - Store embeddings in a Postgres table and search them by similarity
+  - Explain the difference between exact search and an approximate index
+  - Measure what an index costs in missed results
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+So far the embeddings have lived in memory, in a notebook. A real system keeps them in a database. If you already run Postgres, the <mark>pgvector</mark> extension lets it store and search embeddings next to the rest of your data, with no separate system to operate.
+
+## A table with a vector column
+
+pgvector adds one column type, `vector`, with a fixed length. A table of embedded messages looks like any other table with one unusual column.
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE messages (
+    id        bigint PRIMARY KEY,
+    text      text NOT NULL,
+    label     integer NOT NULL,
+    embedding vector(384) NOT NULL
+);
+```
+
+The number in `vector(384)` is the length of the model's output. A table built for one model cannot hold another model's embeddings if the lengths differ, which is the database's way of enforcing the rule from lesson 9.1.
+
+## Searching
+
+pgvector adds operators that measure distance. `<=>` is cosine distance: 0 for the same direction, larger for less similar. Search is an ordinary query ordered by that distance.
+
+```sql
+SELECT id, text, embedding <=> :query AS distance
+FROM messages
+ORDER BY distance
+LIMIT 10;
+```
+
+Because it is ordinary SQL, it combines with everything else Postgres does: filter by customer, by date, by any other column, in the same query.
+
+## From Python with SQLAlchemy
+
+<WorkedExample
+  title="The course's vector store"
+  notes={[
+    "With a database address set, this is a Postgres table. Without one, an in-memory store with the same methods, so the lab runs either way.",
+    "Insert the rows. Under the hood this is one SQLAlchemy insert per thousand rows.",
+    "Nearest first. Each result carries its id, text, label and distance.",
+    "Build the index after loading the data, which is faster than indexing as you go.",
+    "Once the index exists, search effort sets how hard each search looks. Higher finds more of the true neighbours.",
+  ]}
+>
+
+```python
+from kd_course.vector_store import open_store
+
+store = open_store(dim=384)                                # 1
+store.create()
+store.add(ids, texts, embeddings, labels)                  # 2
+
+hits = store.search(query_embedding, k=10)                 # 3
+store.create_index()                                       # 4
+hits = store.search(query_embedding, k=10,
+                    search_effort=200)                     # 5
+```
+
+</WorkedExample>
+
+The table name is checked before it is used, and values always travel as parameters, never pasted into the SQL text. That is standard practice with any database, and it matters here because queries often come from users.
+
+## Exact search and approximate indexes
+
+With no index, Postgres answers a search by comparing the query with every row. That is <mark>exact</mark>: it always finds the true nearest rows. It is also slow on a large table, because the work grows with the number of rows.
+
+An <mark>approximate index</mark> avoids looking at most rows. The one used in this course is called HNSW. It links each vector to some of its near neighbours when the index is built, and a search walks those links toward the query instead of scanning everything.
+
+<PredictReveal
+  client:load
+  id="approximate"
+  prompt="You add an HNSW index to a table of ten million embeddings. Searches become a hundred times faster. What did you give up?"
+  options={["Nothing: an index only changes speed", "Some results: the index occasionally misses a true nearest neighbour", "The ability to filter by other columns"]}
+>
+  Some results. An approximate index finds most of the true nearest neighbours, not all. How many it finds is called the index's recall, and it can be tuned. In pgvector the setting is `hnsw.ef_search`, the number of candidates examined per search: the default is 40, and raising it gives better recall and slower searches. Do not assume the default is good enough. Measure recall for your data by comparing the index's results with exact search on a sample of queries. The lab does this at two settings.
+</PredictReveal>
+
+<div class="table-wrap">
+
+| | Exact search (no index) | HNSW index |
+|---|---|---|
+| Finds the true nearest rows | Always | Usually; measure it |
+| Speed on a large table | Slow | Fast |
+| Extra storage | None | The index, often as large as the data |
+| Time to build | None | Minutes to hours on large tables |
+| Good for | Small tables, and checking the index | Anything large |
+
+</div>
+
+For the 9,000 messages in the lab, exact search is instant and the index is not needed. It is built anyway so that you can see the comparison. The trade starts to matter somewhere in the hundreds of thousands of rows.
+
+## Where the distilled student helps
+
+The student's 384 numbers per row take less than half the space of the teacher's 1,024, in the table and again in the index. Shorter vectors also make every distance calculation cheaper, so both exact and indexed search get faster. Smaller model, smaller table, smaller index, faster queries: this is the triple saving from lesson 9.1, now visible in a database.
+
+<ReviewCard
+  client:load
+  fromModule="Measuring search quality"
+  question="Why must queries not be in the collection they search?"
+>
+  A query would find its own entry first, with perfect similarity, and the score would say nothing about how well search works.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="09-embeddings/04-vectors-in-postgres"
+  id="check-index"
+  question="How do you find out how many true nearest neighbours your approximate index is missing?"
+  options={[
+    {
+      text: "You cannot; that is what approximate means",
+      feedback: "You can measure it directly on a sample.",
+    },
+    {
+      text: "Run a sample of queries with the index and with exact search, and compare the results",
+      correct: true,
+      feedback: "Exact search gives the true answer. The share of it that the index also returns is the index's recall.",
+    },
+    {
+      text: "Check that the index was created without errors",
+      feedback: "A successfully built index tells you nothing about how complete its results are.",
+    },
+  ]}
+/>

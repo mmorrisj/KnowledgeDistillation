@@ -98,6 +98,23 @@ Lab 8 uses the Oxford-IIIT Pet images (`timm/oxford-iiit-pet`). For a local
 copy, put its `train.parquet` and `test.parquet` in a folder named
 `oxford-iiit-pet` under the same `KD_COURSE_DATA_DIR`.
 
+## Postgres with pgvector (optional, Module 9)
+
+Lab 9 stores embeddings in Postgres if you give it a database, and in memory if
+you do not. To use Postgres, the server needs the
+[pgvector](https://github.com/pgvector/pgvector) extension installed. On
+Debian or Ubuntu with Postgres 16 that is the `postgresql-16-pgvector` package.
+Then create a database and a user for the course, and set the address before
+starting Jupyter:
+
+```bash
+export KD_COURSE_DATABASE_URL=postgresql+psycopg://user:password@localhost/dbname
+```
+
+The lab creates the extension in that database if it is not there yet, which
+needs a user allowed to do so. It creates and drops its own tables, whose names
+start with `kd_`. Do not point it at a database where that could clash.
+
 ## Results
 
 Labs save scores and predictions to a `results` folder at the top of the repo
@@ -116,5 +133,6 @@ that folder. It is not committed to git.
 | 6. Distilling generative models | `06_generative/01_generative.ipynb` | about 50 min; stands alone |
 | 7. Compress and serve | `07_serve/01_serve.ipynb` | about 45 min; needs the Module 2 and 3 results |
 | 8. Distilling vision models | `08_vision/01_vision.ipynb` | about 40 min; stands alone; downloads about 800 MB of images |
+| 9. Embedding distillation and search | `09_embeddings/01_embeddings.ipynb` | about 30 min; stands alone; Postgres optional |
 
 Clear all outputs before committing a notebook.

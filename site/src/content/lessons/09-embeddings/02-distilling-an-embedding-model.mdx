@@ -1,0 +1,116 @@
+---
+title: Distilling an embedding model
+order: 2
+minutes: 12
+objectives:
+  - Explain why the earlier distillation losses do not apply directly to embeddings
+  - Describe two ways to distill an embedding model and when each fits
+  - Train a student to match a teacher's similarities without using any labels
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+In Module 3 the student matched the teacher's probabilities over classes. In Module 6 it matched probabilities over tokens. An embedding model has neither. So what is there to match?
+
+## What the teacher knows
+
+The teacher's knowledge is in the arrangement: which texts it places close together and which far apart. A good student is one that arranges texts the same way. There are two ways to ask for that.
+
+## Option one: match the vectors
+
+Train the student so that its embedding of each text is close to the teacher's embedding of the same text.
+
+This runs into a practical problem at once. The teacher produces 1,024 numbers and the student 384, so the two cannot be compared directly. The usual fix is to add a small extra layer to the student that stretches its 384 numbers to 1,024 for training.
+
+What you get is a student that lives in the teacher's space. Its embeddings can be compared with the teacher's, which is useful if you want to keep an existing index and only speed up queries. What you give up is the shorter list: the output is back to 1,024 numbers.
+
+## Option two: match the similarities
+
+Do not compare vectors at all. Take a batch of texts, compute how similar each pair is according to the teacher, and train the student so that its similarities for the same pairs agree.
+
+<PredictReveal
+  client:load
+  id="dimension-free"
+  prompt="The teacher uses 1,024 numbers per text and the student 384. With the similarity approach, what has to be done about the different lengths?"
+  options={["Add a layer to stretch the student's output", "Cut the teacher's output down to 384", "Nothing: a similarity between two texts is one number, whatever the length of the lists it came from"]}
+>
+  Nothing. The teacher's 1,024 numbers for two texts boil down to a single similarity, and so do the student's 384. Those single numbers can be compared directly. The student keeps its short output, which is the saving you wanted. This is the approach the lab uses.
+</PredictReveal>
+
+A batch of 128 texts contains more than 8,000 pairs, so each training step carries a great deal of signal. It is the embedding counterpart of dark knowledge: the teacher says not just that two messages are related, but how closely, for every pair.
+
+<div class="table-wrap">
+
+| | Match the vectors | Match the similarities |
+|---|---|---|
+| Different lengths | Needs an extra layer | No problem |
+| Student's output length | The teacher's | Its own, shorter |
+| Compatible with the teacher's index | Yes | No; the collection is embedded again |
+| Best when | You must keep an existing index | You want the full saving in storage and speed |
+
+</div>
+
+## No labels anywhere
+
+Look at what this training needs: texts, and the teacher's embeddings of them. No one has to say what any text is about. Any pile of text from your domain will do, which makes this the easiest kind of distillation to get data for.
+
+<WorkedExample
+  title="Distilling an embedding model"
+  notes={[
+    "The teacher embeds every text once. The result is kept; the teacher is not needed again.",
+    "The student is trained on the same texts. No labels are passed in.",
+    "Inside, each batch compares the student's similarities for every pair of texts with the teacher's.",
+  ]}
+>
+
+```python
+from kd_course.embeddings import (
+    EMBED_STUDENT_ID, EMBED_TEACHER_ID,
+    embed_texts, load_embedder, train_embedding_student)
+
+teacher, teacher_tokenizer = load_embedder(EMBED_TEACHER_ID)
+teacher_vectors = embed_texts(teacher, teacher_tokenizer, pool_texts)      # 1
+
+student, student_tokenizer = load_embedder(EMBED_STUDENT_ID)
+train_embedding_student(student, student_tokenizer,
+                        pool_texts, teacher_vectors)                       # 2, 3
+```
+
+</WorkedExample>
+
+## The baseline is strong
+
+In the earlier modules the untrained student was weak: a few labels, or no training at all. Here the student is a published embedding model that already works well on general text. The honest question is not whether it works, but whether distilling it on your own domain makes it meaningfully better there. On some domains the gain is large. On others, where the general-purpose student already does well, it is small. The lab measures it.
+
+<ReviewCard
+  client:load
+  fromModule="White-box distillation"
+  question="What is “dark knowledge”?"
+>
+  What a teacher knows about how the alternatives relate: which wrong answers are nearly right. For an embedding model, the counterpart is how similar every pair of texts is, not just which are related.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="09-embeddings/02-distilling-an-embedding-model"
+  id="keep-index"
+  question="You have 50 million documents embedded with the teacher and cannot afford to embed them again. You only want faster queries. Which approach fits?"
+  options={[
+    {
+      text: "Match the similarities, because it keeps the student's output short",
+      feedback: "A similarity-trained student has its own space. Its query embeddings could not be compared with the stored teacher embeddings.",
+    },
+    {
+      text: "Match the vectors, so that the student's embeddings can be compared with the teacher's stored ones",
+      correct: true,
+      feedback: "Only a student trained into the teacher's space can search an index the teacher built. You keep the long lists and gain the faster model.",
+    },
+    {
+      text: "Neither: distillation cannot speed up queries",
+      feedback: "A smaller model embeds a query faster. The question is only whether its output is compatible with what is stored.",
+    },
+  ]}
+/>
