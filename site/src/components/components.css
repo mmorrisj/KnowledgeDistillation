@@ -764,3 +764,40 @@
   border: 0.5px solid var(--ink);
   opacity: 0.35;
 }
+
+/* Neighbour overlap explorer */
+.overlap-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--space-4);
+}
+.overlap-column p {
+  font-family: var(--font-display);
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+.overlap-column ol {
+  margin: 0;
+  padding-left: 1.4rem;
+  display: grid;
+  gap: var(--space-2);
+  font-size: 0.9375rem;
+}
+.overlap-column li {
+  color: var(--muted);
+}
+.overlap-column li[data-shared="true"] {
+  color: var(--ink);
+}
+.overlap-tag {
+  margin-left: var(--space-2);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  white-space: nowrap;
+}
