@@ -1,0 +1,90 @@
+---
+title: Embeddings and search
+order: 1
+minutes: 10
+objectives:
+  - Explain what an embedding model produces and how it is used for search
+  - Name the three places a search system spends money
+  - Say what a smaller embedding model saves, and what it risks
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import VectorSizeExplorer from "../../../components/VectorSizeExplorer.tsx";
+
+Every model in this course so far has produced an answer: a type, a title, a breed. This module is about a model that produces no answer at all, and is one of the most widely deployed kinds there is.
+
+## What an embedding model does
+
+An <mark>embedding model</mark> reads a text and returns a list of numbers, called an <mark>embedding</mark> or a vector. The numbers mean nothing one at a time. What matters is distance: the model is trained so that texts with similar meaning get lists that are close together, and unrelated texts get lists that are far apart.
+
+That one property is enough to build search. Embed every document once and store the results. When a question comes in, embed it the same way and return the stored documents whose embeddings are nearest. This is how most "search by meaning" works, and it is the retrieval step behind systems that look things up before answering.
+
+Closeness is usually measured by <mark>cosine similarity</mark>: how nearly two lists point in the same direction, from 1 for identical direction down through 0 for unrelated.
+
+## Where the money goes
+
+A search system built on embeddings pays in three places.
+
+- **Embedding the documents.** Once per document, and again whenever you change models.
+- **Storing the embeddings.** Every document's list of numbers has to be kept, and for fast search mostly kept in memory.
+- **Embedding each query.** On every search, before anything else can happen. This sets a floor on how fast search can feel.
+
+<VectorSizeExplorer client:load />
+
+The length of the list is set by the model. Larger models tend to produce longer lists, so a bigger embedding model costs more three times over: slower to run on documents, slower to run on each query, and more to store.
+
+## Why distill one
+
+<PredictReveal
+  client:load
+  id="what-saved"
+  prompt="You replace an embedding model that produces 1,024 numbers per text with a distilled one that produces 384 and has a tenth of the weights. Which costs fall?"
+  options={["Only the cost of embedding new documents", "Only the storage", "All three: embedding documents, storing them, and embedding each query"]}
+>
+  All three. The smaller model runs faster on documents and on queries, and its shorter lists take less than half the space. That is unusual: most optimizations help one cost and leave the others alone. The price is search quality, and the rest of this module is about measuring how much is lost and recovering as much as possible.
+</PredictReveal>
+
+There is a catch that the earlier modules did not have. Embeddings from two different models are not comparable. If you change the model, every stored document has to be embedded again with the new one. A distilled embedding model is a replacement for the whole index, not a drop-in swap for one request.
+
+## The task for this module
+
+The data is the banking messages again. The job is search: given a new customer message, find earlier messages about the same thing. A support team might use that to pull up how similar requests were handled.
+
+- **The collection** is the pool of about 9,000 messages.
+- **The queries** are 1,000 test messages.
+- **The teacher** is an embedding model with 335 million weights that produces 1,024 numbers per text.
+- **The student** has 33 million weights and produces 384.
+
+No labels are used for training in this module at all. The messages' types are used only afterwards, to score the results.
+
+<ReviewCard
+  client:load
+  fromModule="Compress and serve"
+  question="What is the difference between latency and throughput?"
+>
+  Latency is how long one request takes. Throughput is how many are handled per second. For search, the time to embed the query is part of every request's latency.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="09-embeddings/01-embeddings-and-search"
+  id="swap-model"
+  question="Your collection of two million documents is embedded with one model. You switch to a distilled model for queries only, to make search faster. What happens?"
+  options={[
+    {
+      text: "Search gets faster and results stay about the same",
+      feedback: "The query's numbers would come from one model and the documents' from another. Distances between them are meaningless.",
+    },
+    {
+      text: "Results become meaningless, because embeddings from different models cannot be compared",
+      correct: true,
+      feedback: "Each model has its own arrangement of meaning. Queries and documents must be embedded by the same model, so switching means embedding the whole collection again.",
+    },
+    {
+      text: "Nothing changes, because all embedding models produce the same numbers",
+      feedback: "They do not. Even the length of the list usually differs.",
+    },
+  ]}
+/>

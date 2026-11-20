@@ -147,3 +147,32 @@ def test_teacher_verdict_without_a_baseline_says_so():
     from kd_course.metrics import teacher_verdict
 
     assert teacher_verdict(teacher=0.62, baseline=None, n=308).startswith("unknown")
+
+
+def test_paired_mean_difference_detects_a_clear_gain():
+    from kd_course.metrics import paired_mean_difference
+
+    a = [0.2, 0.4, 0.3, 0.5] * 50
+    b = [value + 0.2 for value in a]
+    result = paired_mean_difference(a, b, seed=0)
+    assert result.difference == pytest.approx(0.2)
+    assert result.low > 0.19
+    assert result.probability_b_better == 1.0
+
+
+def test_paired_mean_difference_is_unsure_when_nothing_changed():
+    from kd_course.metrics import paired_mean_difference
+
+    a = [0.2, 0.4, 0.3, 0.5] * 50
+    result = paired_mean_difference(a, a, seed=0)
+    assert result.difference == 0
+    assert result.low <= 0 <= result.high
+
+
+def test_paired_mean_difference_rejects_mismatched_or_empty_input():
+    from kd_course.metrics import paired_mean_difference
+
+    with pytest.raises(ValueError, match="length"):
+        paired_mean_difference([0.1], [0.1, 0.2])
+    with pytest.raises(ValueError, match="empty"):
+        paired_mean_difference([], [])

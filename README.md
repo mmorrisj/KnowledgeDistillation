@@ -25,8 +25,9 @@ make install && make build && make serve
 
 ## Status
 
-The site platform and all eight modules are in place: Foundations, Baselines
+The site platform and all nine modules are in place: Foundations, Baselines
 and evaluation, White-box distillation, Black-box distillation, LoRA and QLoRA,
-Distilling generative models, Compress and serve, and Distilling vision models.
-The lab notebooks have not yet been run on a real A10G. Instructor tracking is
-planned; see `docs/superpowers/specs/2026-11-19-kd-course-platform-design.md`.
+Distilling generative models, Compress and serve, Distilling vision models, and
+Embedding distillation and search. The lab notebooks have not yet been run on a
+real A10G. Instructor tracking is planned; see
+`docs/superpowers/specs/2026-11-19-kd-course-platform-design.md`.

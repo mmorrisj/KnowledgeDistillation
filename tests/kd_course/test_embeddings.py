@@ -148,3 +148,12 @@ def test_training_rejects_misaligned_inputs(tiny_embedder):
     model, tokenizer = tiny_embedder
     with pytest.raises(ValueError, match="length"):
         train_embedding_student(model, tokenizer, TEXTS, torch.zeros(2, 4), device="cpu")
+
+
+def test_per_query_precision_gives_one_value_per_query():
+    from kd_course.embeddings import per_query_precision
+
+    values = per_query_precision(
+        [[0, 1, 2], [0, 1, 2]], query_labels=[0, 1], corpus_labels=[0, 1, 0]
+    )
+    assert values == pytest.approx([2 / 3, 1 / 3])

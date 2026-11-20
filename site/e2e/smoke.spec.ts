@@ -116,6 +116,11 @@ const LESSONS = [
   ["08-vision/03-distilling-into-a-small-vision-model", "Distilling into a small vision model"],
   ["08-vision/04-lora-for-vision", "LoRA for vision models"],
   ["08-vision/05-lab-vision", "Lab: distilling a vision model"],
+  ["09-embeddings/01-embeddings-and-search", "Embeddings and search"],
+  ["09-embeddings/02-distilling-an-embedding-model", "Distilling an embedding model"],
+  ["09-embeddings/03-measuring-search-quality", "Measuring search quality"],
+  ["09-embeddings/04-vectors-in-postgres", "Vectors in Postgres with pgvector"],
+  ["09-embeddings/05-lab-embeddings", "Lab: a smaller embedding model for search"],
 ] as const;
 
 for (const [slug, title] of LESSONS) {
@@ -259,4 +264,20 @@ test("the patch explorer counts patches", async ({ page }) => {
   await expect(status).toContainText("196 patches");
   await page.getByRole("button", { name: "8 px" }).click();
   await expect(status).toContainText("784 patches");
+});
+
+test("the vector storage explorer shrinks with smaller embeddings", async ({ page }) => {
+  await page.goto("/modules/09-embeddings/01-embeddings-and-search/");
+  await hydrated(page);
+  const status = page.getByRole("status").filter({ hasText: "for the embeddings alone" });
+  await expect(status).toContainText("3.8 GB");
+  await page.getByRole("button", { name: "384", exact: true }).click();
+  await expect(status).toContainText("1.4 GB");
+});
+
+test("the neighbour overlap explorer reports shared results", async ({ page }) => {
+  await page.goto("/modules/09-embeddings/03-measuring-search-quality/");
+  await hydrated(page);
+  await page.getByRole("slider", { name: "Results compared" }).fill("1");
+  await expect(page.getByRole("status").filter({ hasText: "The two lists share" })).toContainText("100%");
 });

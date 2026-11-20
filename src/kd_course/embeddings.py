@@ -149,6 +149,16 @@ def top_neighbours(
     return similarities.topk(k, dim=-1).indices.tolist()
 
 
+def per_query_precision(
+    neighbours: Sequence[Sequence[int]], query_labels: Sequence[int], corpus_labels: Sequence[int]
+) -> list[float]:
+    """For each query, the share of its results that have the query's own label."""
+    return [
+        sum(corpus_labels[i] == label for i in found) / len(found)
+        for found, label in zip(neighbours, query_labels, strict=True)
+    ]
+
+
 def retrieval_scores(
     neighbours: Sequence[Sequence[int]], query_labels: Sequence[int], corpus_labels: Sequence[int]
 ) -> dict[str, float]:

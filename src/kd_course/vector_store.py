@@ -35,6 +35,15 @@ def _check_rows(
         _check_vector(dim, vector)
 
 
+def _check_effort(search_effort: Any) -> None:
+    if search_effort is None:
+        return
+    if isinstance(search_effort, bool) or not isinstance(search_effort, int):
+        raise ValueError("search_effort must be a whole number between 1 and 1000.")
+    if not 1 <= search_effort <= 1000:
+        raise ValueError("search_effort must be a whole number between 1 and 1000.")
+
+
 def _check_vector(dim: int, vector: Sequence[float]) -> None:
     if len(vector) != dim:
         raise ValueError(f"This store holds vectors of {dim} numbers; got one of {len(vector)}.")
@@ -45,39 +54,56 @@ class MemoryStore:
 
     def __init__(self, dim: int):
         self.dim = dim
-        self._rows: list[tuple[int, str, int, list[float]]] = []
+        self.create()
 
     def create(self) -> None:
-        self._rows = []
+        self._ids: list[int] = []
+        self._texts: list[str] = []
+        self._labels: list[int] = []
+        self._vectors: list[list[float]] = []
+        self._matrix = None  # unit-length rows, built on first search
 
     def drop(self) -> None:
-        self._rows = []
+        self.create()
 
     def add(self, ids, texts, embeddings, labels) -> None:
         _check_rows(self.dim, ids, texts, embeddings, labels)
-        for row in zip(ids, texts, labels, embeddings, strict=True):
-            self._rows.append((row[0], row[1], row[2], [float(v) for v in row[3]]))
+        self._ids.extend(int(i) for i in ids)
+        self._texts.extend(texts)
+        self._labels.extend(int(y) for y in labels)
+        self._vectors.extend([float(v) for v in row] for row in embeddings)
+        self._matrix = None
 
     def create_index(self) -> None:
         """Nothing to build: this store always compares the query with every vector."""
 
     def count(self) -> int:
-        return len(self._rows)
+        return len(self._ids)
 
     def size_bytes(self) -> int:
-        return len(self._rows) * self.dim * 4
+        return len(self._ids) * self.dim * 4
 
-    def search(self, query: Sequence[float], k: int = 10) -> list[Hit]:
+    def search(
+        self, query: Sequence[float], k: int = 10, search_effort: int | None = None
+    ) -> list[Hit]:
+        """Exact search. `search_effort` is accepted for compatibility and has no effect."""
+        import numpy as np
+
         _check_vector(self.dim, query)
-        query_length = sum(v * v for v in query) ** 0.5 or 1.0
-        hits = []
-        for row_id, text, label, vector in self._rows:
-            length = sum(v * v for v in vector) ** 0.5 or 1.0
-            cosine = sum(a * b for a, b in zip(query, vector, strict=True)) / (
-                query_length * length
-            )
-            hits.append(Hit(row_id, text, label, 1.0 - cosine))
-        return sorted(hits, key=lambda hit: hit.distance)[:k]
+        _check_effort(search_effort)
+        if not self._ids:
+            return []
+        if self._matrix is None:
+            matrix = np.asarray(self._vectors, dtype=np.float32)
+            lengths = np.linalg.norm(matrix, axis=1, keepdims=True)
+            self._matrix = matrix / np.where(lengths == 0, 1.0, lengths)
+        q = np.asarray(query, dtype=np.float32)
+        q = q / (np.linalg.norm(q) or 1.0)
+        distances = 1.0 - self._matrix @ q
+        order = np.argsort(distances, kind="stable")[:k]
+        return [
+            Hit(self._ids[i], self._texts[i], self._labels[i], float(distances[i])) for i in order
+        ]
 
 
 class PgVectorStore:
@@ -153,17 +179,28 @@ class PgVectorStore:
                 sa.select(sa.func.pg_total_relation_size(self._table.name))
             ).scalar_one()
 
-    def search(self, query: Sequence[float], k: int = 10) -> list[Hit]:
+    def search(
+        self, query: Sequence[float], k: int = 10, search_effort: int | None = None
+    ) -> list[Hit]:
+        """The k nearest rows by cosine distance.
+
+        `search_effort` sets how many candidates the approximate index examines (pgvector's
+        `hnsw.ef_search`, default 40). Higher finds more of the true neighbours and is slower.
+        It has no effect before the index is built.
+        """
         _check_vector(self.dim, query)
+        _check_effort(search_effort)
         sa, table = self._sa, self._table
         distance = table.c.embedding.cosine_distance([float(v) for v in query]).label("distance")
         statement = (
             sa.select(table.c.id, table.c.text, table.c.label, distance).order_by(distance).limit(k)
         )
-        with self._engine.connect() as connection:
-            return [
-                Hit(r.id, r.text, r.label, float(r.distance)) for r in connection.execute(statement)
-            ]
+        with self._engine.begin() as connection:
+            if search_effort is not None:
+                # SET takes no parameters; the value was checked to be a small whole number.
+                connection.execute(sa.text(f"SET LOCAL hnsw.ef_search = {int(search_effort)}"))
+            rows = connection.execute(statement)
+            return [Hit(r.id, r.text, r.label, float(r.distance)) for r in rows]
 
 
 def open_store(dim: int, table: str = "kd_vectors", url: str | None = None) -> Any:
@@ -176,3 +213,24 @@ def open_store(dim: int, table: str = "kd_vectors", url: str | None = None) -> A
     if url:
         return PgVectorStore(url, table=table, dim=dim)
     return MemoryStore(dim=dim)
+
+
+def index_recall(
+    exact: Sequence[Sequence[Hit]], found: Sequence[Sequence[Hit]], tolerance: float = 1e-6
+) -> float:
+    """Share of an index's results that are as close as the true nearest neighbours.
+
+    `exact` comes from a search with no index; `found` from the same queries with one.
+    A result counts if it is no further away than the furthest true neighbour, so a
+    different row at exactly the same distance, such as a duplicate text, is not a miss.
+    """
+    if len(exact) != len(found):
+        raise ValueError(f"The two result lists differ in length: {len(exact)} and {len(found)}.")
+    good, total = 0, 0
+    for true_hits, index_hits in zip(exact, found, strict=True):
+        if not true_hits:
+            continue
+        furthest = true_hits[-1].distance + tolerance
+        good += sum(hit.distance <= furthest for hit in index_hits)
+        total += len(true_hits)
+    return good / total if total else 0.0

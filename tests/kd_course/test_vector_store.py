@@ -99,3 +99,76 @@ def test_open_store_uses_postgres_when_configured():
     opened = open_store(dim=3, table="kd_test_open")
     assert isinstance(opened, PgVectorStore)
     opened.drop()
+
+
+def test_search_in_an_empty_store_finds_nothing():
+    empty = MemoryStore(dim=3)
+    empty.create()
+    assert empty.search([1.0, 0.0, 0.0], k=5) == []
+
+
+def test_search_effort_is_accepted_by_both_stores(store):
+    assert [hit.id for hit in store.search([1.0, 0.05, 0.0], k=2, search_effort=200)] == [10, 11]
+
+
+@pytest.mark.parametrize("effort", [0, -5, 5000, 2.5, "40; DROP TABLE x"])
+def test_an_invalid_search_effort_is_rejected(store, effort):
+    with pytest.raises(ValueError, match="search_effort"):
+        store.search([1.0, 0.0, 0.0], k=1, search_effort=effort)
+
+
+def test_more_search_effort_finds_more_true_neighbours():
+    if not DATABASE_URL:
+        pytest.skip("Set KD_COURSE_DATABASE_URL to run the pgvector tests.")
+    import numpy as np
+
+    from kd_course.embeddings import neighbour_overlap
+    from kd_course.vector_store import PgVectorStore
+
+    rng = np.random.default_rng(0)
+    n, dim = 4000, 32
+    vectors = rng.normal(size=(n, dim)).astype("float32")
+    queries = rng.normal(size=(40, dim)).tolist()
+    pg = PgVectorStore(DATABASE_URL, table="kd_test_effort", dim=dim)
+    pg.create()
+    pg.add(list(range(n)), ["t"] * n, vectors.tolist(), [0] * n)
+    exact = [[hit.id for hit in pg.search(q, k=10)] for q in queries]
+    pg.create_index()
+    low = neighbour_overlap(
+        exact, [[hit.id for hit in pg.search(q, k=10, search_effort=10)] for q in queries]
+    )
+    high = neighbour_overlap(
+        exact, [[hit.id for hit in pg.search(q, k=10, search_effort=400)] for q in queries]
+    )
+    pg.drop()
+    assert high > low
+    assert high > 0.95
+
+
+def hit(row_id, distance):
+    from kd_course.vector_store import Hit
+
+    return Hit(row_id, "t", 0, distance)
+
+
+def test_index_recall_counts_results_as_good_as_the_true_ones():
+    from kd_course.vector_store import index_recall
+
+    exact = [[hit(1, 0.10), hit(2, 0.20), hit(3, 0.30)]]
+    assert index_recall(exact, [[hit(1, 0.10), hit(2, 0.20), hit(3, 0.30)]]) == 1.0
+    assert index_recall(exact, [[hit(1, 0.10), hit(2, 0.20), hit(9, 0.90)]]) == pytest.approx(2 / 3)
+
+
+def test_index_recall_treats_ties_as_correct():
+    from kd_course.vector_store import index_recall
+
+    # Row 7 is a different row at exactly the same distance as row 3: an equally good answer.
+    exact = [[hit(1, 0.10), hit(2, 0.20), hit(3, 0.30)]]
+    assert index_recall(exact, [[hit(1, 0.10), hit(2, 0.20), hit(7, 0.30)]]) == 1.0
+
+
+def test_index_recall_rejects_mismatched_input():
+    from kd_course.vector_store import index_recall
+
+    with pytest.raises(ValueError, match="length"):
+        index_recall([[hit(1, 0.1)]], [])

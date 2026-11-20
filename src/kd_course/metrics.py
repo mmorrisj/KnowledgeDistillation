@@ -168,3 +168,33 @@ def teacher_verdict(teacher: float, baseline: float | None, n: int) -> str:
     if difference < -margin:
         return f"worse: the teacher is clearly behind the baseline ({detail})."
     return f"unclear: the two cannot be told apart on this many messages ({detail})."
+
+
+def paired_mean_difference(
+    a: Sequence[float],
+    b: Sequence[float],
+    n_resamples: int = 1000,
+    confidence: float = 0.95,
+    seed: int = 0,
+) -> PairedResult:
+    """Compare two models by a per-item score, such as each query's precision.
+
+    `a[i]` and `b[i]` are the two models' scores on the same item. Items are resampled
+    together, so the result reflects how the models differ on the same items.
+    """
+    import numpy as np
+
+    if len(a) != len(b):
+        raise ValueError(f"The two score lists differ in length: {len(a)} and {len(b)}.")
+    if len(a) == 0:
+        raise ValueError("Cannot compare empty score lists.")
+    gaps = np.asarray(b, dtype=float) - np.asarray(a, dtype=float)
+    resampled = gaps[_resample_indices(len(gaps), n_resamples, seed)].mean(axis=1)
+    tail = (1 - confidence) / 2 * 100
+    low, high = np.percentile(resampled, [tail, 100 - tail])
+    return PairedResult(
+        difference=float(gaps.mean()),
+        low=float(low),
+        high=float(high),
+        probability_b_better=float(np.mean(resampled > 0)),
+    )

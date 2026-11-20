@@ -441,3 +441,77 @@ def test_vision_lab_flow(tiny_clip, tiny_vit_dir, tmp_path):  # noqa: F811
         "distilled_lora",
     }
     assert "distilled_lora" in format_results(load_results(folder))
+
+
+def test_embedding_lab_flow(tiny_encoder_dir):  # noqa: F811
+    """Module 9 end to end on a tiny model: embed, distil, score, store, search, index."""
+    import copy
+
+    import torch
+    import transformers
+
+    from kd_course.embeddings import (
+        embed_texts,
+        neighbour_overlap,
+        per_query_precision,
+        retrieval_scores,
+        top_neighbours,
+        train_embedding_student,
+    )
+    from kd_course.metrics import paired_mean_difference
+    from kd_course.vector_store import open_store
+
+    teacher = transformers.AutoModel.from_pretrained(tiny_encoder_dir).eval()
+    tokenizer = transformers.AutoTokenizer.from_pretrained(tiny_encoder_dir)
+    corpus, corpus_labels = TRAIN.texts, TRAIN.labels
+    queries, query_labels = ["my card stolen", "the exchange rate"], [0, 1]
+
+    teacher_corpus = embed_texts(teacher, tokenizer, corpus)
+    teacher_found = top_neighbours(embed_texts(teacher, tokenizer, queries), teacher_corpus, k=3)
+
+    torch.manual_seed(5)
+    student = copy.deepcopy(teacher)
+    with torch.no_grad():
+        for parameter in student.parameters():
+            parameter.add_(torch.randn_like(parameter) * 0.2)
+
+    def student_results():
+        found = top_neighbours(
+            embed_texts(student, tokenizer, queries), embed_texts(student, tokenizer, corpus), k=3
+        )
+        return found, per_query_precision(found, query_labels, corpus_labels)
+
+    found_before, precision_before = student_results()
+    train_embedding_student(
+        student,
+        tokenizer,
+        corpus,
+        teacher_corpus,
+        epochs=20,
+        learning_rate=2e-3,
+        batch_size=8,
+        device="cpu",
+    )
+    found_after, precision_after = student_results()
+
+    assert 0 <= neighbour_overlap(found_before, teacher_found) <= 1
+    assert neighbour_overlap(found_after, teacher_found) >= neighbour_overlap(
+        found_before, teacher_found
+    )
+    assert retrieval_scores(found_after, query_labels, corpus_labels)["k"] == 3
+    change = paired_mean_difference(precision_before, precision_after, n_resamples=50)
+    assert change.low <= change.difference <= change.high
+
+    # Store the student's vectors and search them, with whichever store is configured.
+    vectors = embed_texts(student, tokenizer, corpus)
+    store = open_store(dim=vectors.shape[1], table="kd_test_pipeline")
+    store.create()
+    store.add(list(range(len(corpus))), corpus, vectors.tolist(), corpus_labels)
+    query_vector = embed_texts(student, tokenizer, queries[:1])[0].tolist()
+    exact = [hit.id for hit in store.search(query_vector, k=3)]
+    assert exact == found_after[0]
+    store.create_index()
+    indexed = [hit.id for hit in store.search(query_vector, k=3)]
+    assert neighbour_overlap([exact], [indexed]) == 1.0
+    assert store.size_bytes() > 0
+    store.drop()

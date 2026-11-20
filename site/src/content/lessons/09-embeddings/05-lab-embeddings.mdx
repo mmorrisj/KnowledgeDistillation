@@ -1,0 +1,99 @@
+---
+title: "Lab: a smaller embedding model for search"
+order: 5
+minutes: 10
+objectives:
+  - Distill an embedding model using no labels and measure the change in search quality
+  - Compare student and teacher on quality, speed and storage
+  - Store embeddings in pgvector and measure what an approximate index misses
+lab:
+  title: A smaller embedding model for search
+  path: labs/09_embeddings/01_embeddings.ipynb
+  minutes: 30
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+This lab builds a search over the banking messages three times: with the teacher, with the student as published, and with the student after distillation. It stands alone and does not need results from earlier labs.
+
+## Postgres is optional
+
+If the GPU machine has Postgres with the pgvector extension, set the database address before starting Jupyter and the lab stores its vectors there:
+
+```bash
+export KD_COURSE_DATABASE_URL=postgresql+psycopg://user:password@localhost/dbname
+```
+
+Without it, the lab uses an in-memory store with the same methods and tells you so. Everything runs either way. The index comparison in the last section is only meaningful with Postgres.
+
+## What the lab does
+
+1. **Embeds the collection and the queries with the teacher.**
+2. **Embeds them with the student as published.** This is the baseline.
+3. **Distills the student** on the collection, matching the teacher's similarities. No labels are used.
+4. **Scores all three** on precision at 10 and top-1 accuracy, with intervals, and the two students on overlap with the teacher.
+5. **Compares costs**: how fast each model embeds text, and how much space its collection takes.
+6. **Stores the distilled student's embeddings**, runs searches, builds the index, and measures how many true nearest neighbours the index returns at two settings of search effort.
+
+## Before you look at the results
+
+Predict and write down:
+
+- How far behind the teacher will the published student be?
+- Will distillation move the student closer to the teacher, on overlap and on precision?
+- How many times faster will the student embed text?
+
+## Reading the results
+
+- **Published student against teacher.** The student is a good general-purpose model, so the gap may be small. A small gap is a result: it tells you how little there is to gain on this domain.
+- **Overlap before and after.** This is the direct measure of what training did. It should rise. If it does not, the training cell did not learn; check that the loss fell.
+- **Precision before and after.** This can move less than overlap, or not at all. Moving closer to the teacher only improves search where the teacher was better to begin with. Use the paired comparison before concluding anything.
+- **Speed and storage.** These are the certain gains. Whatever happened to quality, the student is several times faster and its collection is well under half the size.
+- **Index recall.** The lab prints the share of exact search's results that the index returned, first at the default search effort and then at a higher one. Do not assume the default is close to 100%: with default settings an index can miss a noticeable share, and how much depends on the data. Raising the effort recovers most of it and makes each search slower.
+
+If distillation did not improve precision, the practical conclusion is still useful: on this domain the published student is already close enough to the teacher that you can take the speed and storage savings without distilling at all.
+
+## If something goes wrong
+
+<div class="table-wrap">
+
+| What you see | Likely cause | What to do |
+|---|---|---|
+| "Using an in-memory store" when you expected Postgres | The database address is not set in the notebook's environment | Set `KD_COURSE_DATABASE_URL` before starting Jupyter, then restart the notebook |
+| An error mentioning the `vector` type or extension | pgvector is not installed in that database | Install the extension, or unset the address to use the in-memory store |
+| A connection error | The address, user or password is wrong, or Postgres is not running | Check the address by connecting with `psql` first |
+| Training loss does not fall | The learning rate was changed | Use about 2e-5 |
+| Out of memory during training | The batch is too large for what else is on the GPU | Lower `BATCH_SIZE` at the top of the notebook; note that smaller batches contain fewer pairs |
+
+</div>
+
+<ReviewCard
+  client:load
+  fromModule="Vectors in Postgres with pgvector"
+  question="What does an approximate index give up in exchange for speed?"
+>
+  Some results. It finds most of the true nearest neighbours but can miss a few. How many it finds is measured by comparing it with exact search on a sample of queries.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="09-embeddings/05-lab-embeddings"
+  id="no-quality-gain"
+  question="After distillation, the student's overlap with the teacher rises clearly, but its precision at 10 is unchanged. What is the most reasonable reading?"
+  options={[
+    {
+      text: "The training failed",
+      feedback: "Overlap rose, so the student did move toward the teacher. Training did what it was asked to.",
+    },
+    {
+      text: "The student now agrees with the teacher more, but the teacher's results were not more relevant than the student's own on this data",
+      correct: true,
+      feedback: "Becoming more like the teacher only helps where the teacher was better. Here the published student was already about as good, so the gain from distilling is small and the savings in speed and storage are the main benefit.",
+    },
+    {
+      text: "Precision at 10 cannot measure search quality",
+      feedback: "It can, with the limits lesson 9.3 described. An unchanged score is information, not a broken measure.",
+    },
+  ]}
+/>
