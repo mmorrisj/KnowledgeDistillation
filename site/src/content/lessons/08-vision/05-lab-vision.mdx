@@ -1,0 +1,93 @@
+---
+title: "Lab: distilling a vision model"
+order: 5
+minutes: 10
+objectives:
+  - Score images with a zero-shot teacher and save the scores
+  - Distill the teacher into a small vision transformer and measure the gap closed
+  - Compare a small fully fine-tuned student with a larger one trained with LoRA
+lab:
+  title: Distilling a vision model
+  path: labs/08_vision/01_vision.ipynb
+  minutes: 40
+---
+
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+This lab repeats the heart of Modules 2, 3 and 5 with photographs. It stands alone and does not need results from earlier labs. The first run downloads about 800 MB of images.
+
+## What the lab does
+
+1. **Builds the four piles**: 148 gold training photos, 74 for validation, about 3,450 unlabelled, and 1,000 for testing.
+2. **Scores every photo with the teacher** and saves the scores. The teacher's accuracy on the test set is the ceiling.
+3. **Prepares the images once** for the small student.
+4. **Baseline:** the small student trained on the 148 gold photos alone.
+5. **Distilled student:** the same model trained on the teacher's probabilities for the pool as well.
+6. **LoRA student:** a model about fifteen times larger, trained on the same data with LoRA.
+7. **Compares everything**, with intervals, gap closed and paired tests, then shows some photos the distilled student got wrong.
+
+Results are saved in `results/vision`, separate from the banking results.
+
+## Before you look at the results
+
+Predict and write down:
+
+- How accurate will the teacher be on 37 breeds with no training?
+- How accurate will the baseline be, with four labelled photos per breed?
+- How much of the gap between them will the small distilled student close?
+
+## Reading the results
+
+- **Teacher against baseline.** Expect a wide gap in the teacher's favor. Compare this with your Lab 2 result, where the two may have been close. The difference is how little four photos per breed can teach.
+- **Gap closed by the small student.** A student about seventy times smaller than its teacher will not close all of it. How much it does close is the measured value of the teacher on this task.
+- **The LoRA student.** It differs from the small distilled student in two ways at once: it is a larger model, and it was trained with LoRA. If it scores higher, the likelier cause is its size and its stronger pretraining. The cost table shows what share of its weights were trained.
+- **The mistakes.** The lab shows a few photos the distilled student got wrong, with what it said and what was true. Look for confusions between breeds that resemble each other, and check the teacher's opinion of the same photos: a student often inherits its teacher's doubts.
+
+## If something goes wrong
+
+<div class="table-wrap">
+
+| What you see | Likely cause | What to do |
+|---|---|---|
+| The dataset will not download | The machine cannot reach Hugging Face | Put the two image files in a folder named `oxford-iiit-pet` and set `KD_COURSE_DATA_DIR`, as in `labs/README.md` |
+| Out of memory while preparing images | Several prepared copies are held at once | Restart the notebook; teacher scores are saved and will be reused |
+| "The scores were computed for different texts" | Saved teacher scores belong to a different split | Delete the named file and score again |
+| Baseline accuracy near 3% | With 37 breeds, about 2.7% is chance: the student has not learned | Check that the training cell finished and the loss fell |
+| "Could not find this model's attention layers" | The larger student's layers have unexpected names | Print its layer names and pass them as `lora_targets` |
+
+</div>
+
+## What this module showed
+
+You changed the data, the teacher and the student, and kept the method. The same loss, the same habit of saving teacher scores, the same three numbers and the same paired tests carried over from text to images without modification. That is the reason to learn distillation as a method and not as a recipe for one kind of model.
+
+<ReviewCard
+  client:load
+  fromModule="LoRA for vision models"
+  question="When LoRA is used on an image classifier with a new output layer, what must be trained in full alongside the adapters?"
+>
+  The new output layer. It starts with random weights, and adapters elsewhere in the model cannot fix it.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="08-vision/05-lab-vision"
+  id="two-changes"
+  question="The larger LoRA student beats the small fully fine-tuned student by six points. What can you conclude about LoRA?"
+  options={[
+    {
+      text: "LoRA is a better training method than full fine-tuning",
+      feedback: "The two students differ in size and pretraining as well as in training method, so the six points cannot be credited to LoRA.",
+    },
+    {
+      text: "Very little: the students also differ in size, so the comparison does not isolate LoRA",
+      correct: true,
+      feedback: "To isolate LoRA you would train the same model both ways, as Lab 5 did. Here the lesson is about what a larger student buys and what LoRA makes cheap.",
+    },
+    {
+      text: "The small student was trained incorrectly",
+      feedback: "A smaller model scoring lower than a larger one is the expected outcome, not a sign of a bug.",
+    },
+  ]}
+/>

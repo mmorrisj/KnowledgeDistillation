@@ -1,0 +1,128 @@
+---
+title: A teacher that reads class names
+order: 2
+minutes: 12
+objectives:
+  - Explain how a model trained on images and text can classify images it was never trained to classify
+  - Get a probability for every class from such a model
+  - Say why the wording around a class name changes the teacher's accuracy
+---
+
+import PipelineDiagram from "../../../components/PipelineDiagram.astro";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import ProbBars from "../../../components/ProbBars.astro";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+In Module 2 the teacher was a language model given a list of types. For images there is a teacher that plays the same role: it has never been trained on pet breeds as a task, and it can still name them.
+
+## Images and text in one space
+
+The teacher in this module is CLIP. It was trained on hundreds of millions of images paired with the text that accompanied them. It has two halves:
+
+- an image half that turns a picture into a list of numbers;
+- a text half that turns a sentence into a list of numbers of the same length.
+
+Training pushed the two halves to agree: a photo of a beagle and the words "a photo of a beagle" end up with similar numbers, and a photo of a beagle and "a photo of a teapot" end up far apart.
+
+## Classifying with no training
+
+That agreement is enough to classify. Write one sentence per class, and for each image ask which sentence it sits closest to.
+
+<PipelineDiagram
+  steps={[
+    { label: "Write a sentence per class", detail: "“a photo of a beagle, a type of pet”, and so on for all 37 breeds." },
+    { label: "Encode the sentences", detail: "The text half turns each into numbers. Done once." },
+    { label: "Encode the image", detail: "The image half does the same for the photo." },
+    { label: "Compare", detail: "Score how closely the image matches each sentence." },
+    { label: "Softmax", detail: "Turn the 37 scores into probabilities that add up to 100%." },
+  ]}
+/>
+
+This is called <mark>zero-shot</mark> classification: zero labelled examples of the task were used. It is the image counterpart of the prompted teacher from Module 2, with one advantage. Because the model produces a score for every class in a single pass, you get its full set of probabilities directly. There is no need for the scoring method of lesson 3.2.
+
+<ProbBars
+  caption="A teacher's view of one photo of a Birman cat (illustrative numbers)"
+  items={[
+    { label: "birman", percent: 64 },
+    { label: "ragdoll", percent: 27 },
+    { label: "siamese", percent: 6 },
+    { label: "persian", percent: 1 },
+    { label: "beagle", percent: 0.01 },
+  ]}
+/>
+
+Birmans and Ragdolls look alike, and the teacher's probabilities say so. That is the dark knowledge of Module 3, in pictures.
+
+## The sentence matters
+
+<PredictReveal
+  client:load
+  id="template"
+  prompt="You can describe each class to the teacher as just the breed name, “boxer”, or as “a photo of a boxer, a type of pet”. Which do you expect to work better?"
+  options={["The bare name: shorter is clearer", "The full sentence", "No difference: the model only looks at the breed word"]}
+>
+  The full sentence, usually by several points. The teacher learned from captions, which read like sentences, and the extra words remove ambiguity: a boxer is also an athlete, and a pug is also a kind of nose. The wording is the image teacher's prompt, and like the prompts in Module 4 it is chosen on validation data.
+</PredictReveal>
+
+<WorkedExample
+  title="Scoring images with the teacher"
+  notes={[
+    "The model, plus the two pieces that prepare its inputs: one for images, one for text.",
+    "One row per image, one log-probability per breed. Scores are saved and tagged with the image ids, so the teacher runs once.",
+    "The teacher's top choice for each image, for measuring its accuracy.",
+  ]}
+>
+
+```python
+from kd_course.label_scoring import top_labels
+from kd_course.vision import load_zero_shot_teacher, zero_shot_or_load
+
+teacher, image_processor, tokenizer = load_zero_shot_teacher()       # 1
+
+pool_scores = zero_shot_or_load(
+    folder / "pool.json", splits.pool,
+    teacher, image_processor, tokenizer, LABELS)                     # 2
+teacher_choice = top_labels(pool_scores)                             # 3
+```
+
+</WorkedExample>
+
+## A licence note
+
+Lesson 1.5 said to check the licence of every model you build on. This teacher is a good exercise. At the time of writing, its page on the model hub carries no licence tag, while the code it was released with is under a permissive licence. Before using it for anything commercial, read its model card and decide whether that is clear enough for your organization. Other image-and-text models with explicit permissive licences exist, and the course code takes the teacher's name as a setting so that you can swap one in.
+
+## Do teacher and student need to match?
+
+No. As in Module 3, the two models' numbers line up by class, not by token or patch. The teacher and the student can cut the image into different patch sizes, expect different image sizes, and be entirely different designs.
+
+<ReviewCard
+  client:load
+  fromModule="White-box distillation"
+  question="Why are a teacher's scores computed once and saved?"
+>
+  Scoring is the slow step, its result does not depend on the student, and saving it means the teacher and the student never have to share the GPU.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="08-vision/02-a-teacher-that-reads-class-names"
+  id="why-zero-shot"
+  question="How can this teacher classify pet breeds when it was never trained on a pet-breed dataset?"
+  options={[
+    {
+      text: "It memorized the Oxford-IIIT Pet test set",
+      feedback: "It may have seen similar photos, as lesson 2.2 warned, but that is not how the method works.",
+    },
+    {
+      text: "It learned to place images and their descriptions close together, so an image can be matched to a sentence naming its class",
+      correct: true,
+      feedback: "Classification becomes a matching problem: which class sentence is this image closest to?",
+    },
+    {
+      text: "The student teaches it during distillation",
+      feedback: "Information flows from teacher to student. The teacher is never trained here.",
+    },
+  ]}
+/>

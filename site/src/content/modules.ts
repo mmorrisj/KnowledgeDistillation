@@ -10,5 +10,5 @@ export const MODULES: ModuleInfo[] = [
   { slug: "05-lora", title: "LoRA and QLoRA", status: "available" },
   { slug: "06-generative", title: "Distilling generative models", status: "available" },
   { slug: "07-serve", title: "Compress and serve", status: "available" },
-  { slug: "08-vision", title: "Vision and multimodal", status: "planned" },
+  { slug: "08-vision", title: "Distilling vision models", status: "available" },
 ];

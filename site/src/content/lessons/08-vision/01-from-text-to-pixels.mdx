@@ -1,0 +1,103 @@
+---
+title: From text to pixels
+order: 1
+minutes: 10
+objectives:
+  - Explain how a vision transformer reads an image as a row of tokens
+  - Name what carries over unchanged from the text modules and what is new
+  - Describe the image task and the scarce-label scenario for this module
+---
+
+import PatchExplorer from "../../../components/PatchExplorer.tsx";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+
+Everything so far has been about text. This module asks how much of it survives when the input is an image. The answer is nearly all of it, and seeing that is the point of the module.
+
+## An image as a row of tokens
+
+Module 1 described how a transformer reads text: split it into tokens, turn each token into a list of numbers, and let the model relate them to each other. A <mark>vision transformer</mark> does the same with an image. It cuts the image into small square <mark>patches</mark>, turns each patch into a list of numbers, and treats the patches as tokens.
+
+<PatchExplorer client:load />
+
+After that first step, the model inside is the same kind of transformer you have been training since Module 2. One extra token is added to stand for the whole image, and the classifier reads its answer from that token.
+
+## What carries over
+
+<div class="table-wrap">
+
+| From the text modules | In this module |
+|---|---|
+| A teacher that classifies with no training, from a prompt (Module 2) | A teacher that classifies images from class names, with no training |
+| The teacher's probability for every class (Module 3) | The same, for 37 classes |
+| Scores computed once and saved (Module 3) | The same |
+| Temperature and the distillation loss (Module 3) | The same function, unchanged |
+| LoRA on a larger student (Module 5) | The same idea, attached to a vision transformer |
+| Three numbers, intervals, paired comparisons (Module 2) | The same |
+
+</div>
+
+<PredictReveal
+  client:load
+  id="what-changes-in-loss"
+  prompt="The Module 3 distillation loss takes the student's scores for each class, the teacher's log-probabilities and the human labels. What has to change in that function to use it for images?"
+  options={["It needs a version that understands pixels", "Nothing: by the time it runs, both models have turned the image into class scores", "The temperature has to be removed"]}
+>
+  Nothing. The loss never sees the input. It compares two sets of class scores, and it does not matter whether they came from a sentence or a photograph. The lab calls the very same function.
+</PredictReveal>
+
+## What is new
+
+- **Images are bigger than sentences.** A message was a few dozen tokens. An image is about 200. Preparing images takes real time, so the lab converts them to model-ready numbers once and reuses them.
+- **Variety comes from the images themselves.** A photo mirrored left to right is still the same animal. Showing the student altered copies, called <mark>augmentation</mark>, is a standard way to stretch a small set of images. Lesson 8.3 covers how it interacts with a teacher.
+- **The teacher is a different kind of model.** It was trained on images paired with text, which is what lets it classify from class names. Lesson 8.2 explains it.
+
+## The task
+
+The data is the Oxford-IIIT Pet dataset: about 7,400 photos of cats and dogs from 37 breeds. Telling a Birman from a Ragdoll, or one terrier from another, is fine-grained in the way the banking types were.
+
+The scenario is the one from Module 2, with images:
+
+<div class="table-wrap">
+
+| Pile | Size | What it is |
+|---|---|---|
+| Gold training set | 148 (4 per breed) | The few photos a person has labelled |
+| Gold validation set | 74 (2 per breed) | Labelled photos for decisions during training |
+| Unlabelled pool | about 3,450 | Photos with no human label, for the teacher to score |
+| Test set | 1,000 | Held back for scoring finished models |
+
+</div>
+
+Four labelled photos per breed is very little. That is the situation distillation is for.
+
+<ReviewCard
+  client:load
+  fromModule="Foundations"
+  question="What are the steps of the training loop that every method in this course modifies?"
+>
+  Show the model an input, let it predict, compare the prediction with a target, and nudge the weights to shrink the gap. Distillation changes the target; LoRA changes which weights are nudged. Neither depends on what kind of input it is.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="08-vision/01-from-text-to-pixels"
+  id="patch-size"
+  question="A vision transformer cuts a 224-pixel image into 16-pixel patches. You switch to 8-pixel patches. What happens?"
+  options={[
+    {
+      text: "Twice as many tokens, and the model sees finer detail",
+      feedback: "The patch size halves in both directions, so the count goes up by four, not two.",
+    },
+    {
+      text: "Four times as many tokens: finer detail, at a much higher cost to run",
+      correct: true,
+      feedback: "196 patches become 784. A transformer's work grows faster than its token count, so smaller patches are a real cost to weigh against the detail gained.",
+    },
+    {
+      text: "The same number of tokens, each holding more information",
+      feedback: "Smaller patches mean more of them. Each one covers less of the image.",
+    },
+  ]}
+/>

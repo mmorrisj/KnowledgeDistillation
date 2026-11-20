@@ -1,0 +1,103 @@
+---
+title: Distilling into a small vision model
+order: 3
+minutes: 12
+objectives:
+  - Train a small vision transformer on a teacher's probabilities with the Module 3 loss
+  - Explain what augmentation does and how it interacts with saved teacher scores
+  - Prepare images once so that training is not slowed by image handling
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+The teacher has about 430 million weights and reads a class name for every decision. The student in this module has under 6 million and reads only the image. This lesson covers how the knowledge gets from one to the other.
+
+## The recipe has not changed
+
+1. The teacher scores every photo in the pool and the gold training set. The scores are saved.
+2. The student trains on the pool using the teacher's probabilities, and on the gold photos using both the teacher's probabilities and the human labels.
+3. The loss is `kd_loss` from lesson 3.4: alpha times the teacher term, plus one minus alpha times the label term, with a temperature and the T² correction.
+
+<WorkedExample
+  title="Training the student"
+  notes={[
+    "Images are resized and normalized once, into one block of numbers the student can read directly.",
+    "Gold photos carry a human label. Pool photos carry None.",
+    "The same temperature and alpha as in Module 3. Inside, this calls the same kd_loss.",
+  ]}
+>
+
+```python
+from kd_course.vision import VISION_STUDENT_ID, to_pixels, train_image_classifier
+
+pixels = to_pixels(student_processor,
+                   list(splits.gold_train.images) + list(splits.pool.images))   # 1
+labels = splits.gold_train.labels + [None] * len(splits.pool)                    # 2
+
+student = train_image_classifier(
+    VISION_STUDENT_ID, pixels, labels, val_pixels, splits.gold_val.labels,
+    num_labels=37, teacher_log_probs=gold_scores + pool_scores,
+    temperature=2.0, alpha=0.5)                                                  # 3
+```
+
+</WorkedExample>
+
+## Preparing images once
+
+Opening an image file, resizing it and converting it to numbers takes far longer than the equivalent step for a sentence. If that happens again for every image in every epoch, the GPU spends most of its time waiting. The course code prepares each image once and keeps the result in memory. For a few thousand images that is a few gigabytes, which the lab machine has to spare.
+
+## Augmentation
+
+A student with 148 labelled photos will memorize them unless it is shown variety. <mark>Augmentation</mark> makes variety from the images you have: mirror a photo, crop it slightly differently, shift its colors. The label is unchanged, and the student sees something a little new each time.
+
+The course code uses the mildest kind, mirroring half the images in each batch left to right.
+
+<PredictReveal
+  client:load
+  id="augment-teacher"
+  prompt="The teacher scored each original photo once, and those scores are saved. During training the student sees a mirrored copy of a photo, paired with the teacher's saved scores for the original. Is that a problem?"
+  options={["Yes: the scores no longer describe what the student is looking at", "For mirroring, no: a mirrored cat is the same breed, and the teacher would say much the same", "It makes no difference what scores are used"]}
+>
+  For mirroring, no. The teacher's opinion of a photo and of its mirror image are almost identical, so the saved scores still fit. For strong augmentation the answer changes: a crop that cuts off the animal's head, or two photos blended together, is a different picture, and the teacher's scores for the original no longer describe it. Then the teacher has to score the altered image itself, which means keeping the teacher running during training. Saved scores with mild augmentation is the practical middle, and it is what the lab uses.
+</PredictReveal>
+
+## A model with distillation in its history
+
+The student, DeiT, has a place in this subject already. Its name stands for data-efficient image transformer. When it was introduced, vision transformers were thought to need enormous datasets, and DeiT showed that one could be trained well on far less with the help of a teacher. The small student you are about to distill into was itself made practical by distillation.
+
+## What to expect, and what not to assume
+
+With four labelled photos per breed, the baseline student has very little to go on, and a strong zero-shot teacher should be well ahead of it. This is the opposite starting position from the banking task, where the baseline had a fair chance of matching the prompted teacher. Whether that holds on your run is for the lab to show. If it does, there is a wide gap for distillation to close, and the question becomes how much of it a model seventy times smaller can cover.
+
+<ReviewCard
+  client:load
+  fromModule="White-box distillation"
+  question="Why is the teacher term of the distillation loss multiplied by T squared?"
+>
+  Dividing scores by the temperature shrinks the teacher term's gradients by about T squared. Multiplying back keeps the teacher term and the label term on a comparable scale.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="08-vision/03-distilling-into-a-small-vision-model"
+  id="strong-augmentation"
+  question="You switch to an augmentation that blends pairs of photos together, and keep using the teacher's saved scores for the original photos. What is wrong?"
+  options={[
+    {
+      text: "Nothing: more augmentation always helps",
+      feedback: "The student would be told that a half-beagle, half-pug image is a beagle, with the teacher's full confidence.",
+    },
+    {
+      text: "The saved scores describe the original photos, not the blended images the student actually sees",
+      correct: true,
+      feedback: "The target no longer matches the input. Either blend the teacher's scores the same way, or have the teacher score the blended images.",
+    },
+    {
+      text: "Blended images cannot be cut into patches",
+      feedback: "Any image can be. The problem is the mismatch between what is shown and what it is labelled as.",
+    },
+  ]}
+/>

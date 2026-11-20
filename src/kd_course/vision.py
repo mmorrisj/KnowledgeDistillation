@@ -332,7 +332,8 @@ def train_image_classifier(
     steps_per_epoch = (len(pixels) + batch_size - 1) // batch_size
     scheduler = _schedule(optimizer, epochs * steps_per_epoch)
     shuffle = torch.Generator().manual_seed(seed)
-    on_gpu = torch.device(device).type == "cuda"
+    device_type = torch.device(device).type
+    on_gpu = device_type == "cuda"
     trained = TrainedImageClassifier(model=model)
     best_accuracy, best_state = -1.0, None
 
@@ -347,7 +348,7 @@ def train_image_classifier(
             flip = torch.rand(len(rows), generator=shuffle) < 0.5
             batch[flip] = batch[flip].flip(-1)
             rows = rows.to(device)
-            with torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=on_gpu):
+            with torch.autocast(device_type=device_type, dtype=torch.bfloat16, enabled=on_gpu):
                 logits = model(pixel_values=batch).logits
             logits = logits.float()
             if teacher is None:
