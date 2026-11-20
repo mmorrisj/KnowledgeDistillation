@@ -21,13 +21,28 @@ jobs:
 
   labs:
     runs-on: ubuntu-latest
+    # A real Postgres with the pgvector extension, so the vector store is tested for real.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: kd
+          POSTGRES_PASSWORD: kd
+          POSTGRES_DB: kd_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kd -d kd_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      KD_COURSE_DATABASE_URL: postgresql+psycopg://kd:kd@127.0.0.1:5432/kd_test
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync
       # CPU build of PyTorch: the package tests use a tiny model and need no GPU.
       - run: uv pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - run: uv pip install "transformers>=4.56" accelerate datasets peft pillow
+      - run: uv pip install "transformers>=4.56" accelerate datasets peft pillow "sqlalchemy>=2.0" "psycopg[binary]>=3.2" "pgvector>=0.3"
       - run: uv run --no-sync pytest -q tests/kd_course tests/labs -rs
       - name: Fail if any lab test was skipped
         run: "! uv run --no-sync pytest -q tests/kd_course tests/labs -rs | grep -q SKIPPED"
