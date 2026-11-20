@@ -33,7 +33,7 @@ _NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 def save_result(
     name: str,
     metrics: dict[str, Any],
-    predictions: list[int | None],
+    predictions: list[Any],
     results_dir: str | Path | None = None,
 ) -> Path:
     """Write `<results_dir>/<name>.json`, replacing any earlier result with that name."""

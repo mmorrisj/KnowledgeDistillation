@@ -688,3 +688,23 @@
   white-space: nowrap;
   color: var(--muted);
 }
+
+/* KL direction explorer */
+.kl-plot {
+  width: 100%;
+  height: auto;
+  max-height: 11rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.kl-teacher {
+  fill: var(--soft);
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+.kl-student {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+}

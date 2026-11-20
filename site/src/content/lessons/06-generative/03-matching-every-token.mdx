@@ -1,0 +1,129 @@
+---
+title: Matching every token
+order: 3
+minutes: 14
+objectives:
+  - Describe token-level distillation as the Module 3 loss applied at every position
+  - Explain why only the teacher's top few tokens per position are stored
+  - Read the teacher's probabilities along an answer without generating anything
+---
+
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import ProbBars from "../../../components/ProbBars.astro";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import TopKExplorer from "../../../components/TopKExplorer.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+In Module 3 the student matched the teacher's probabilities over 77 types. <mark>Token-level distillation</mark> is the same idea with one change: the probabilities are over the next token, and the matching happens at every position of the answer.
+
+## One position
+
+Suppose the teacher has written "New card not" and is choosing the next token.
+
+<ProbBars
+  caption="The teacher's next token after “New card not” (illustrative numbers)"
+  items={[
+    { label: "received", percent: 58 },
+    { label: "arrived", percent: 27 },
+    { label: "delivered", percent: 11 },
+    { label: "here", percent: 2 },
+    { label: "working", percent: 0.3 },
+  ]}
+/>
+
+The title it finally wrote says "received". Sequence-level distillation teaches the student that one word. The probabilities also say that "arrived" and "delivered" would have been fine and "working" would have been wrong. That is the dark knowledge of Module 3, now available at every token.
+
+## Reading the probabilities along an answer
+
+You do not ask the teacher to generate again. You show it the prompt followed by the title it already wrote, in one pass, and read off its next-token distribution at each position of the title. This is sometimes called teacher forcing: the teacher is held to its own earlier words while you record what it thought at each step.
+
+## The storage problem
+
+<PredictReveal
+  client:load
+  id="storage"
+  prompt="You have 10,000 training examples with answers of about 50 tokens each. If you saved the teacher's probability for every token in a 150,000-token vocabulary at every position, about how much disk would that take?"
+  options={["About 150 MB", "About 15 GB", "About 140 GB"]}
+>
+  About 140 GB, for a small dataset with short answers. Nearly all of those numbers are effectively zero. Keeping only the teacher's most likely tokens at each position loses almost nothing and shrinks the data by a factor of thousands.
+</PredictReveal>
+
+<TopKExplorer client:load />
+
+The standard fix is to keep the <mark>top-k</mark>: the teacher's k most likely tokens at each position, with their probabilities, and nothing else. The kept probabilities are rescaled to add up to 100%. A k of 20 is a common starting point.
+
+Keeping too few loses the alternatives you wanted the student to see. Keeping too many stores noise. As with other settings, try two values and compare on validation data.
+
+## The loss
+
+At each position of the answer, the loss is the one from lesson 3.4:
+
+> loss = alpha × teacher term + (1 − alpha) × token term
+
+- **The teacher term** pulls the student's probabilities for the kept tokens toward the teacher's, with a temperature and the T² correction.
+- **The token term** is ordinary cross-entropy against the token the teacher actually wrote. This is the sequence-level loss.
+
+The total is averaged over every position of every answer. With alpha at 0 you are back to sequence-level distillation exactly.
+
+<WorkedExample
+  title="Token-level distillation with the course package"
+  notes={[
+    "The teacher reads its own prompt and its own title, and its top 20 tokens at each title position are recorded. Nothing is generated.",
+    "The student is trained with its own short prompt. The teacher's prompt and the student's prompt can differ; the title's tokens must be the same for both.",
+    "The same temperature and alpha as in Module 3.",
+  ]}
+>
+
+```python
+from kd_course.titles import student_prompt, teacher_chat_prompts
+from kd_course.token_kd import topk_targets, train_token_kd
+
+records = topk_targets(
+    teacher_model, tokenizer,
+    teacher_chat_prompts(tokenizer, messages), titles,
+    k=20, answer_prefix="")                                  # 1
+
+train_token_kd(
+    student, tokenizer,
+    [student_prompt(m) for m in messages], records,          # 2
+    temperature=2.0, alpha=0.5)                              # 3
+```
+
+</WorkedExample>
+
+## Why the tokenizer must match
+
+The teacher's record for a title is a list of token numbers. The student is asked to give those same token numbers high probability. If the two models split text differently, token 5,012 means one thing to the teacher and something else to the student, and the record is meaningless. Models in one family share a tokenizer, so a 7B teacher and a 0.5B student from the same family line up exactly.
+
+Sequence-level distillation has no such limit, because text can be re-split by any tokenizer.
+
+<ReviewCard
+  client:load
+  fromModule="White-box distillation"
+  question="In the distillation loss, what does setting alpha to 0 do?"
+>
+  It removes the teacher term. Only the hard target is left: the human label in Module 3, or the token the teacher wrote in this module.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="06-generative/03-matching-every-token"
+  id="why-topk"
+  question="Why is it acceptable to keep only the teacher's top 20 tokens at each position?"
+  options={[
+    {
+      text: "Because the student can only learn 20 tokens at a time",
+      feedback: "The student has a probability for every token. The limit is about storage and signal, not the student's capacity.",
+    },
+    {
+      text: "Because nearly all of the teacher's probability sits on a handful of tokens, and the rest are close to zero",
+      correct: true,
+      feedback: "The dropped tokens carry almost no information, and dropping them shrinks the data by a factor of thousands.",
+    },
+    {
+      text: "Because the tokenizer only has 20 common tokens",
+      feedback: "The vocabulary has about 150,000 tokens. Which 20 matter is different at every position.",
+    },
+  ]}
+/>

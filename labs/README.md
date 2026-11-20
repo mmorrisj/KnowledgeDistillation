@@ -94,5 +94,6 @@ that folder. It is not committed to git.
 | 3. White-box distillation | `03_white_box/01_white_box.ipynb` | about 45 min; needs the Module 2 results |
 | 4. Black-box distillation | `04_black_box/01_black_box.ipynb` | about 45 min; needs the Module 2 results |
 | 5. LoRA and QLoRA | `05_lora/01_lora.ipynb` | about 40 min; needs the Module 2 and 3 results |
+| 6. Distilling generative models | `06_generative/01_generative.ipynb` | about 50 min; stands alone |
 
 Clear all outputs before committing a notebook.

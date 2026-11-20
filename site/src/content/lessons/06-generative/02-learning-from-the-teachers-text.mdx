@@ -1,0 +1,118 @@
+---
+title: Learning from the teacher's text
+order: 2
+minutes: 10
+objectives:
+  - Build a training set for a writing student from a teacher's outputs
+  - Filter teacher outputs with rules before training on them
+  - Explain what the student's shorter prompt buys you
+---
+
+import PipelineDiagram from "../../../components/PipelineDiagram.astro";
+import PredictReveal from "../../../components/PredictReveal.tsx";
+import Quiz from "../../../components/Quiz.tsx";
+import ReviewCard from "../../../components/ReviewCard.tsx";
+import WorkedExample from "../../../components/WorkedExample.astro";
+
+The simplest way to distill a writer is the one you already know from Module 4: have the teacher do the task on many inputs, and train the student on what it wrote. For text output this is called <mark>sequence-level distillation</mark>.
+
+## The recipe
+
+<PipelineDiagram
+  steps={[
+    { label: "Prompt the teacher", detail: "Full instructions plus one message." },
+    { label: "Collect its titles", detail: "One per message in the unlabelled pool." },
+    { label: "Filter by rule", detail: "Drop titles that are empty or break the word limit." },
+    { label: "Train the student", detail: "Short prompt in, the teacher's title out." },
+    { label: "Score on held-out messages", detail: "Messages neither model has trained on." },
+  ]}
+/>
+
+Nothing about this needs the teacher's weights. It works with an API teacher, and with a teacher from a different model family.
+
+## Filter before you train
+
+In Module 4 an unusable reply was one that named no valid type. For titles, "unusable" is whatever breaks the task's rules. Those rules can be checked by a program, and a title that breaks them should not be a training example:
+
+- more than eight words;
+- empty;
+- the customer's message copied back.
+
+A student trained on titles that sometimes run long will write titles that sometimes run long. Filtering costs a little data and removes the teacher's rule-breaking from what the student copies.
+
+<PredictReveal
+  client:load
+  id="filter-effect"
+  prompt="The teacher follows the eight-word limit 90% of the time. You train one student on all its titles and another only on the titles within the limit. Which student follows the limit more often?"
+  options={["The one trained on everything, because it saw more data", "The one trained on filtered titles", "They follow it equally often"]}
+>
+  The one trained on filtered titles, and it can follow the limit more reliably than the teacher itself. The student never sees a long title, so it has no example of writing one. This is one of the few places where a student can be made better than its teacher on purpose: on any property you can check by rule.
+</PredictReveal>
+
+## The student's prompt
+
+The teacher needs the full instructions every time: what a title is, the word limit, the tone. The trained student has learned all of that from examples, so its prompt is just the message.
+
+<WorkedExample
+  title="Two prompts for the same job"
+  notes={[
+    "The teacher's prompt carries the whole specification. It is about 70 tokens before the message.",
+    "The student's prompt carries none of it. The instructions now live in the student's weights.",
+    "Training pairs: the student's short prompt, and the teacher's title as the answer.",
+  ]}
+>
+
+```python
+from kd_course.titles import build_title_prompt, generate_titles, student_prompt
+
+build_title_prompt(message)     # 1  "You write titles for customer support
+                                #     tickets at a bank. Write a title of at
+                                #     most 8 words ... Customer message: ..."
+
+student_prompt(message)         # 2  "Message: ...\nTitle:\n"
+
+titles = generate_titles(teacher, pool_messages)
+prompts = [student_prompt(m) for m in pool_messages]     # 3
+```
+
+</WorkedExample>
+
+That difference is paid back on every request the student ever serves. It is also a reason to distill even when the small model could be prompted into doing the task: a prompted small model pays for the instructions each time and usually follows them less reliably.
+
+## How the teacher writes matters
+
+When collecting training data, have the teacher pick its most likely token at each step, with no randomness. Consistent outputs are easier for a small student to learn than varied ones. If you later want a student with more variety, that is a deliberate choice to make, with more data.
+
+## What this method cannot see
+
+The student sees the title the teacher chose. It does not see that the teacher nearly wrote "delayed" in place of "not received", or that it was unsure whether to mention the three weeks. That is the same loss as in Module 4, and the next lesson recovers it.
+
+<ReviewCard
+  client:load
+  fromModule="Black-box distillation"
+  question="When building a training set from teacher replies, what happens to a reply that is unusable?"
+>
+  It is dropped, and counted. There is nothing valid to train on, and a high count points at the prompt.
+</ReviewCard>
+
+<Quiz
+  client:load
+  lessonId="06-generative/02-learning-from-the-teachers-text"
+  id="why-short-prompt"
+  question="After training, the student's prompt has no instructions in it. Where did the instructions go?"
+  options={[
+    {
+      text: "They are added back automatically when the student runs",
+      feedback: "Nothing is added. The student receives only the message.",
+    },
+    {
+      text: "Into the student's weights: it learned what a title is from thousands of examples",
+      correct: true,
+      feedback: "The examples all followed the instructions, so following them is what the student learned to do.",
+    },
+    {
+      text: "They were never needed; small models do not use instructions",
+      feedback: "An untrained small model does need them, and the lab's baseline uses them. Training is what removes the need.",
+    },
+  ]}
+/>
