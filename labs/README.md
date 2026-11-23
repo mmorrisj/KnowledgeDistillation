@@ -121,6 +121,18 @@ Labs save scores and predictions to a `results` folder at the top of the repo
 (set `KD_COURSE_RESULTS_DIR` to put it elsewhere). Later labs read them, so keep
 that folder. It is not committed to git.
 
+## What is checked without a GPU
+
+Every notebook's own code cells are run on CPU by the test suite, with tiny
+models and toy data swapped in for the real ones
+(`tests/labs/test_notebook_smoke.py`). The lab code is also run against toy-size
+copies of the real model designs, Qwen2 and ModernBERT
+(`tests/kd_course/test_real_architectures.py`).
+
+These checks catch mistakes in the notebooks and the code. They cannot tell you
+how fast a lab runs, how much memory it needs, or how good the real models are.
+For that, each lab still has to be run once on a GPU.
+
 ## Notebooks
 
 | Module | Notebook | Time |
