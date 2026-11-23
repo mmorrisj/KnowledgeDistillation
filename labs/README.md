@@ -11,7 +11,14 @@ that serves the course site.
 
 ## Set up (once)
 
-On the GPU machine, in the repo folder:
+On the GPU machine, check the GPU is visible. You should see one A10G with
+about 24 GB:
+
+```bash
+nvidia-smi
+```
+
+Then, in the repo folder:
 
 ```bash
 make install-labs
@@ -19,7 +26,8 @@ make install-labs
 
 ## Start Jupyter
 
-On the GPU machine:
+On the GPU machine, inside `tmux` or `screen` so a dropped SSH connection does
+not stop a long lab:
 
 ```bash
 uv run --group labs jupyter lab --no-browser --port 8888
@@ -148,3 +156,35 @@ For that, each lab still has to be run once on a GPU.
 | 9. Embedding distillation and search | `09_embeddings/01_embeddings.ipynb` | about 30 min; stands alone; Postgres optional |
 
 Clear all outputs before committing a notebook.
+
+## Running every lab in one sitting
+
+Use this to check a new GPU machine, or after changing the labs. Allow about
+five and a half hours.
+
+1. Run the notebooks in this order: 1, 2, 3, 4, 5, 7, then 6, 8 and 9. Labs 3,
+   4, 5 and 7 read results that earlier labs saved; Labs 6, 8 and 9 stand
+   alone. If Lab 1 fails, stop and fix the machine first.
+2. In each notebook, choose "Restart Kernel and Run All Cells".
+3. Shut down each notebook's kernel before starting the next. A kernel left
+   running keeps its GPU memory.
+4. Lab 7 is the exception to "Run All". It first saves a student, then asks
+   you to start the student service in a second terminal (see "Serving a
+   student" above), and waits only a minute for it. Run its cells in order by
+   hand, start the service when asked, then carry on.
+5. To check the Postgres path in Lab 9, set `KD_COURSE_DATABASE_URL` before
+   starting Jupyter.
+
+For each lab, write down:
+
+- how long it took, against the time in the table;
+- the highest GPU memory use, which you can watch in another terminal:
+
+  ```bash
+  watch -n 5 nvidia-smi
+  ```
+
+- any error, with the full traceback and the cell it came from;
+- any result that contradicts what the lesson predicted.
+
+Keep the `results` folder afterwards: it holds every score the labs saved.
